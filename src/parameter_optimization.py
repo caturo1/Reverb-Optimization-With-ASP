@@ -14,24 +14,21 @@ filename = os.path.join(script_dir, "../data/schreihals.wav")
 input = audio_features.AudioFeatures()
 
 y, sr = ia.load_audio(filename)
-# only calculate if I need it later, but for now it's fine (room for optimization)
-S = ia.compute_STFT(y, sr)
 
 # more accurate with spectrogram
-rms = ia.compute_rms(S)
-rms_dB = 20 * np.log10(rms)
+y_normalized, rms, rms_dB_mean, g = ia.normalize_audio(y)
 
-dyn_rms = ia.compute_dynamic_rms(rms)
+#could use gain=g to scale the dynamic range
+dyn_rms = ia.compute_dynamic_rms(rms, gain=g)
 
-input.mean_rms = np.mean(rms)
+input.mean_rms = np.rint(rms_dB_mean)
 input.dynamic_range = dyn_rms
 
-print(input.mean_rms, input.dynamic_range)
+print(f"RMS: {input.mean_rms} and dynamic range: {input.dynamic_range}\
+ rounded to nearest integer and gain coeff {g}")
 
+"""
 def on_model(model: Model) -> None:
-    """    
-        Print the current model to the console
-    """ 
     print(f"{model}")
 
 ctl = Control()
@@ -43,3 +40,4 @@ ctl.gound()
 result = ctl.solve(on_model=on_model)
 
 print(result)
+"""

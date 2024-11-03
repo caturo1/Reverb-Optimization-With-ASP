@@ -3,7 +3,7 @@ import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
 
-CHUNK = 1024
+CHUNK = 2048
 CHANNELS = 2
 RATE = 44_100
 
@@ -14,6 +14,7 @@ def normalize_signal(sig):
 def check_sr(name):
     return librosa.get_samplerate(name)
 
+"""
 def spectral_plot(S_db, y, centroid, flatness, contrast, sr):
     # Create plot
     fig, ax = plt.subplots(3, sharex=True, figsize=(12, 8))
@@ -43,11 +44,15 @@ def spectral_plot(S_db, y, centroid, flatness, contrast, sr):
 
     plt.tight_layout()
     plt.show()
+"""
 
 def rms_to_db(rms):
     return np.abs(30 + 20 * np.log10(rms))
 
-def load_audio(file) -> tuple:
+def load_audio(file):
+    # Convert Samples to dBFS
+    """R_dB = -6
+    R = 10^(R_dB/20)"""
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return y, sr
 
@@ -73,18 +78,20 @@ def median_spectral_contrast(S, sr):
     return librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
 
 # window_size = n_fft size (default 2048)
-def compute_rms(S):
-    return librosa.feature.rms(S=S)
+def normalize_audio(y, target_rms_dB=-6):
+    rms = librosa.feature.rms(y=y)
+    rms_dB_mean = 20 * np.log10(np.mean(rms))
+    gain = 10**((target_rms_dB - rms_dB_mean) / 20)
+    return y * gain, rms, rms_dB_mean, gain
 
-def compute_dynamic_rms(rms):
+def compute_dynamic_rms(rms, gain):
     # if stereo, concentrate array to 1D for computation
     if rms.size > 1:
         rms = np.concatenate(rms, axis=0)
     
     # so we don't run into division by 0
-    rms = rms[rms > 0]
-    #return rms ratio in dB
-    return 20 * np.log10(np.max(rms) / np.min(rms))
+    rms = rms[rms > 0]*gain
+    return np.rint(20 * np.log10(np.percentile(rms, 97) / np.percentile(rms,3)))
 
 # idk, not sure here
 def compute_dynamic_snr(y):
