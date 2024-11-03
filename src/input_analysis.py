@@ -47,37 +47,59 @@ def spectral_plot(S_db, y, centroid, flatness, contrast, sr):
 def rms_to_db(rms):
     return np.abs(30 + 20 * np.log10(rms))
 
-def main():
-    filename = "./data/schreihals.wav"
+def load_audio(file) -> tuple:
+    y, sr = librosa.load(path=file, sr=RATE, mono=False)
+    return y, sr
 
-    # Load and compute spectrogram
-    y, sr = librosa.load(filename, sr=RATE)
+"""
+To compute the 
+- Magnitude spectrum we use np.abs(S)
+- Phase spectrum we use np.angle(S)
+"""
+def compute_STFT(y, sr):
     S = librosa.stft(y)
-    S_db = librosa.amplitude_to_db(np.abs(S), ref=np.max)
+    return S
 
-    # Compute spectral centroid
-    centroid = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+def mean_spectral_centroid(y, sr):
+    return librosa.feature.spectral_centroid(y=y, sr=sr)[0]
 
-    # Compute spectral flatness
-    flatness = librosa.feature.spectral_flatness(y=y)[0]
-    scaled_flatness = flatness*100
+def mean_spectral_flatness(y):
+    return librosa.feature.spectral_flatness(y=y)[0]
 
-    # Compute spectral roll-off
-    s_rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+def compute_spectral_rolloff(y, sr):
+    return librosa.feature.spectral_rolloff(y=y, sr=sr)
 
-    # Compute spectral contrast
-    contrast = librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
+def median_spectral_contrast(S, sr):
+    return librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
 
-    # Plot the spectrogram with features
-    spectral_plot(S_db, y, centroid=centroid, flatness=scaled_flatness, contrast=contrast, sr=sr)
+# window_size = n_fft size (default 2048)
+def compute_rms(S):
+    return librosa.feature.rms(S=S)
 
-    # Compute RMS
-    s_rms = librosa.feature.rms(S=S)
-    dynamics_db_rms = rms_to_db(s_rms.max() - s_rms.min())
+def compute_dynamic_rms(rms):
+    # if stereo, concentrate array to 1D for computation
+    if rms.size > 1:
+        rms = np.concatenate(rms, axis=0)
+    
+    # so we don't run into division by 0
+    rms = rms[rms > 0]
+    #return rms ratio in dB
+    return 20 * np.log10(np.max(rms) / np.min(rms))
 
-    print(f"The mean spectral flatness is {flatness.mean():.4f} with maximum rolloff at {s_rolloff.max():.2f}\n"
-          f"and a root mean squared between {s_rms.min():.4f} and {s_rms.max():.4f} leading to a general rms dynamic range of {dynamics_db_rms:.2f}\n"
-          f"and a mean spectral centroid at {centroid.mean():.2f} Hz and {flatness}")
-
-if __name__ == "__main__":
-    main()
+# idk, not sure here
+def compute_dynamic_snr(y):
+    if y.ndim == 1:  # Mono signal
+        m = y.mean()
+        sd = y.std()
+    elif y.ndim == 2:  # Stereo signal
+        m = y.mean(axis=0) + 1e-20  # Mean for each channel
+        sd = y.std(axis=0)  # Standard deviation for each channel
+    else:
+        raise ValueError("Input signal must be 1D (mono) or 2D (stereo).")
+    
+    # Ensure m / sd is a valid positive number
+    ratio = m / sd
+    if np.any(ratio <= 0):
+        return 0  # or some other appropriate value or handling
+    
+    return 20 * np.log10(np.abs(ratio)).mean()  # Average SNR across channels
