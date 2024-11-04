@@ -2,6 +2,9 @@ import librosa
 import librosa.display
 import matplotlib.pyplot as plt
 import numpy as np
+from sklearn.preprocessing import MinMaxScaler
+from typing import Tuple
+import numpy.typing as npt
 
 CHUNK = 2048
 CHANNELS = 2
@@ -53,7 +56,7 @@ def load_audio(file):
     # Convert Samples to dBFS
     """R_dB = -6
     R = 10^(R_dB/20)"""
-    y, sr = librosa.load(path=file, sr=RATE, mono=False)
+    y, sr = librosa.load(path=file, sr=RATE, mono=True)
     return y, sr
 
 """
@@ -77,36 +80,25 @@ def compute_spectral_rolloff(y, sr):
 def median_spectral_contrast(S, sr):
     return librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
 
+def rms_to_dB(rms, eps=1e-20):
+    # same as 20*log10(rms+eps)
+    return librosa.power_to_db(rms**2)
+
 # window_size = n_fft size (default 2048)
-def normalize_audio(y, target_rms_dB=-6):
+# not sure, if the scaling is done properly or of it distorts the feature perception
+def rms_features(y) -> Tuple[npt.NDArray[np.float32], int]:
+    scaler = MinMaxScaler(feature_range=(0,100))
     rms = librosa.feature.rms(y=y)
-    rms_dB_mean = 20 * np.log10(np.mean(rms))
-    gain = 10**((target_rms_dB - rms_dB_mean) / 20)
-    return y * gain, rms, rms_dB_mean, gain
+    scaled_rms = scaler.fit_transform(rms[0].reshape(-1, 1))
+    rms_mean = np.rint(np.mean(scaled_rms))
+    return scaled_rms, rms_mean
 
-def compute_dynamic_rms(rms, gain):
-    # if stereo, concentrate array to 1D for computation
-    if rms.size > 1:
-        rms = np.concatenate(rms, axis=0)
+# percentile calculation to get an estimate in order to avoid clips and nosie distorting the dynamic range
+def compute_dynamic_rms(scaled_rms) -> int:
+    rms = np.ravel(scaled_rms)
+    if len(rms) == 0:
+        return 0
+    p97 = np.percentile(rms, 97)  
+    p3 = np.percentile(rms, 3)    
     
-    # so we don't run into division by 0
-    rms = rms[rms > 0]*gain
-    return np.rint(20 * np.log10(np.percentile(rms, 97) / np.percentile(rms,3)))
-
-# idk, not sure here
-def compute_dynamic_snr(y):
-    if y.ndim == 1:  # Mono signal
-        m = y.mean()
-        sd = y.std()
-    elif y.ndim == 2:  # Stereo signal
-        m = y.mean(axis=0) + 1e-20  # Mean for each channel
-        sd = y.std(axis=0)  # Standard deviation for each channel
-    else:
-        raise ValueError("Input signal must be 1D (mono) or 2D (stereo).")
-    
-    # Ensure m / sd is a valid positive number
-    ratio = m / sd
-    if np.any(ratio <= 0):
-        return 0  # or some other appropriate value or handling
-    
-    return 20 * np.log10(np.abs(ratio)).mean()  # Average SNR across channels
+    return np.rint(p97 - p3)

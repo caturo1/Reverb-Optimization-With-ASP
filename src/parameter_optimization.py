@@ -16,16 +16,13 @@ input = audio_features.AudioFeatures()
 y, sr = ia.load_audio(filename)
 
 # more accurate with spectrogram
-y_normalized, rms, rms_dB_mean, g = ia.normalize_audio(y)
+rms, rms_mean = ia.rms_features(y)
+dyn_rms = ia.compute_dynamic_rms(rms)
 
-#could use gain=g to scale the dynamic range
-dyn_rms = ia.compute_dynamic_rms(rms, gain=g)
-
-input.mean_rms = np.rint(rms_dB_mean)
+input.mean_rms = rms_mean
 input.dynamic_range = dyn_rms
 
-print(f"RMS: {input.mean_rms} and dynamic range: {input.dynamic_range}\
- rounded to nearest integer and gain coeff {g}")
+print(f"Scaled RMS: {input.mean_rms} amd Scaled Dynamic Range: {input.dynamic_range}\n")
 
 """
 def on_model(model: Model) -> None:
