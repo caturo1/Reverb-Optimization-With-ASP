@@ -8,8 +8,9 @@ class AudioFeatures:
         #self.spectral_rolloff: float
         #self.median_spectral_contrast: float
         #self.spectral_flatness: float
-        self.dynamic_range: float
-        self.mean_rms: float
+        self.dynamic_range: int
+        self.mean_rms: int
+        self.density: int
 
 def to_clingo(self) -> str:
     return f"{self.dynamic_range},{self.mean_rms})."

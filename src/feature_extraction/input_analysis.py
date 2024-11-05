@@ -69,7 +69,9 @@ def compute_STFT(y, sr):
     return S
 
 def mean_spectral_centroid(y, sr):
-    return librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    spec_cen = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    mean = np.mean(spec_cen)
+    return mean
 
 def mean_spectral_flatness(y):
     return librosa.feature.spectral_flatness(y=y)[0]
@@ -86,6 +88,7 @@ def rms_to_dB(rms, eps=1e-20):
 
 # window_size = n_fft size (default 2048)
 # not sure, if the scaling is done properly or of it distorts the feature perception
+# scaling, such that ASP can deal with the values
 def rms_features(y) -> Tuple[npt.NDArray[np.float32], int]:
     scaler = MinMaxScaler(feature_range=(0,100))
     rms = librosa.feature.rms(y=y)
