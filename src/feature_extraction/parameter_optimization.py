@@ -1,17 +1,14 @@
 import os
 import numpy as np
 from clingo import Model
-import input_analysis as ia
 from clingo.control import Control
-import feature_extraction.audio_features as audio_features
+from pedalboard import Pedalboard, Reverb
+from pedalboard.io import AudioFile
 
+import input_analysis as ia
+import audio_features 
 
-def on_model(model: Model) -> None:
-    # define what to do with the model:
-    # we want to extract the parameters and apply reverb
-    print(f"{model}")
-
-def write_instance(instance_file_path, instance) -> None:
+def write_instance(instance_file_path, instance) -> str:
     try: 
         with open(instance_file_path, 'r') as instance_file:
             instance_content = instance_file.read()
@@ -28,15 +25,35 @@ def write_instance(instance_file_path, instance) -> None:
     except FileNotFoundError:
         print("Instance File not found")
         new_instance_content = instance
+    return instance_content
+
+def extract_params(model: Model) -> dict:
+    params = {}
+    for symbol in model.symbols(shown=True):
+        name = symbol.name
+        value = symbol.arguments[0].number
+
+        if name == "selected_size":
+            params["size"] = value / 100
+        elif name == "selected_damp":
+            params["damping"] = value / 100
+        elif name == "selected_wet":
+            params["wet"] = value / 100
+        elif name == "selected_spread":
+            params["spread"] = value / 100
+        
+    return params
 
 
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../data/schreihals.wav')
-    asp_file_path = (script_dir, '../ASP/encoding.lp')
-    instance_file_path = (script_dir, '../ASP/instance.lp')
+    sample = os.path.join(script_dir, '../../data/schreihals.wav')
+    asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
+    instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
     
+    print(sample)
+
     # extract values
     y, sr = ia.load_audio(sample)
     S = ia.compute_STFT(y=y, sr=sr)
@@ -44,25 +61,66 @@ def main():
     # use sample as input for rms
     rms, rms_mean = ia.rms_features(y)
     dyn_rms = ia.compute_dynamic_rms(rms)
-    mean_spectral_centroid = ia.mean_spectral_centroid(y, sr)
+    mean_spectral_centroid = np.rint(ia.mean_spectral_centroid(y, sr))
     density = (100 - dyn_rms) * rms_mean
 
+    # create current instance facts to parse into instance.lp
     instance = f"""
-    rms({rms_mean}).
-    dr({dyn_rms}).
-    spectral_centroid({mean_spectral_centroid}).
-    density_population({density}).
-    mono({0})
+    rms({int(rms_mean)}).
+    dr({int(dyn_rms)}).
+    spectral_centroid({int(mean_spectral_centroid)}).
+    density_population({int(density)}).
+    mono({1}).
     """
-    
-    write_instance(instance_file_path, instance)
+    original_content = None
+    try:
+        with open(instance_file_path, 'r') as f:
+            original_content = f.read()
+    except FileNotFoundError:
+        original_content = ""
 
+    base_content = write_instance(instance_file_path, instance)
+
+    # start grounding and solve
     ctl = Control()
+    ctl.load(instance_file_path)
+    ctl.load(asp_file_path)
+    #ctl.add("base", instance_file_path, asp_file_path)
+    ctl.ground([("base", [])])
+    #ctl.configuration.solve.models = 1
+    
+    params = {}
 
-    ctl.load(asp_file_path, instance_file_path)
-    # maybe just compute one model
-    ctl.gound([("base", [])])
+    with ctl.solve(yield_=True) as hnd:
+        #extract reverb parameters here
+        for model in hnd:
+            optimal_model = model
+        params = extract_params(optimal_model)
 
-    result = ctl.solve(on_model=on_model)
+    # apply reverb
+    output_dir = os.path.join(script_dir, '../../processed_data')
+    os.makedirs(output_dir, exist_ok=True)
+    output_file = os.path.join(output_dir, 'processed_file.wav')
+    board = Pedalboard([Reverb(
+                    room_size=params["size"],
+                    damping=params["damping"],
+                    wet_level=params["wet"],
+                    dry_level=1 - params["wet"],
+                    width=params["spread"]
+                )])
+#    output_file = os.path.splitext(sample)[0] + '_output.wav'
 
-    print(result)
+ 
+    with AudioFile(sample) as f:
+        with AudioFile(output_file, 'w', f.samplerate, f.num_channels) as o:
+            while f.tell() < f.frames:
+                audio = f.read(f.samplerate)
+                effected = board(audio, f.samplerate, reset=False)
+                o.write(effected)
+
+    with open(instance_file_path, 'w') as f:
+        f.write(original_content)
+
+
+if __name__ == "__main__":
+    main()
