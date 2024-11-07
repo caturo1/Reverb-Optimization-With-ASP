@@ -1,19 +1,16 @@
-from typing import Any
-
-
+# nice but can use dict and parse this directly into Jason
 class AudioFeatures:
-    def __init___(self):
-        #self.mean_spectral_centroid: float
-        #self.mean_spectral_flatness: float
-        #self.spectral_rolloff: float
-        #self.median_spectral_contrast: float
-        #self.spectral_flatness: float
-        self.dynamic_range: int
-        self.mean_rms: int
-        self.density: int
 
-def to_clingo(self) -> str:
-    return f"{self.dynamic_range},{self.mean_rms})."
-
-
-# define __getattr__ and __setattr__ to allow for dynamic attribute access
+    def __init___(
+            self, dynamic_range, 
+            mean_rms, density, 
+            spec_cent):
+        #self.mean_spectral_centroid: int
+        #self.mean_spectral_flatness: int
+        #self.spectral_rolloff: int
+        #self.median_spectral_contrast: int
+        #self.spectral_flatness: int
+        self.mean_spectral_centroid = dynamic_range
+        self.mean_rms = mean_rms
+        self.density = density
+        self.mean_spectral_centroid = spec_cent

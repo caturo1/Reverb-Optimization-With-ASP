@@ -1,45 +1,68 @@
 import os
-from clingo.control import Control
-from clingo import Model
 import numpy as np
-import feature_extraction.audio_features as audio_features
+from clingo import Model
 import input_analysis as ia
-
-# Get the directory of the current script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-
-# Construct the relative path to the audio file
-filename = os.path.join(script_dir, "../data/schreihals.wav")
-
-input = audio_features.AudioFeatures()
-
-y, sr = ia.load_audio(filename)
-S = ia.compute_STFT(y=y, sr=sr)
-# more accurate with spectrogram
-rms, rms_mean = ia.rms_features(y)
-dyn_rms = ia.compute_dynamic_rms(rms)
-mean_spectral_centroid = ia.mean_spectral_centroid(y, sr)
-
-input.mean_rms = rms_mean
-input.dynamic_range = dyn_rms
-# Density of the input audio based on inverse relationship of dr and rms
-input.density = (100 - dyn_rms) * rms_mean
-# The higher the spectral centroid, the higher the daming should be
+from clingo.control import Control
+import feature_extraction.audio_features as audio_features
 
 
-print(f"Scaled RMS: {input.mean_rms} amd Scaled Dynamic Range: {input.dynamic_range}\n")
-
-"""
 def on_model(model: Model) -> None:
+    # define what to do with the model:
+    # we want to extract the parameters and apply reverb
     print(f"{model}")
 
-ctl = Control()
+def write_instance(instance_file_path, instance) -> None:
+    try: 
+        with open(instance_file_path, 'r') as instance_file:
+            instance_content = instance_file.read()
+        new_instance_content = instance_content + instance
+        
+        try:
+            with open(instance_file_path, 'w') as instance_file:
+                instance_file.write(new_instance_content)
+        except IOError:
+            with open(instance_file_path, 'w') as instance_file:
+                instance_file.write(instance_content)
+            print("File not found. Restored instance.lp")
+            raise
+    except FileNotFoundError:
+        print("Instance File not found")
+        new_instance_content = instance
 
-ctl.load("parameter_guessing.lp")
 
-ctl.gound()
+def main():
+        
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    sample = os.path.join(script_dir, '../data/schreihals.wav')
+    asp_file_path = (script_dir, '../ASP/encoding.lp')
+    instance_file_path = (script_dir, '../ASP/instance.lp')
+    
+    # extract values
+    y, sr = ia.load_audio(sample)
+    S = ia.compute_STFT(y=y, sr=sr)
+    
+    # use sample as input for rms
+    rms, rms_mean = ia.rms_features(y)
+    dyn_rms = ia.compute_dynamic_rms(rms)
+    mean_spectral_centroid = ia.mean_spectral_centroid(y, sr)
+    density = (100 - dyn_rms) * rms_mean
 
-result = ctl.solve(on_model=on_model)
+    instance = f"""
+    rms({rms_mean}).
+    dr({dyn_rms}).
+    spectral_centroid({mean_spectral_centroid}).
+    density_population({density}).
+    mono({0})
+    """
+    
+    write_instance(instance_file_path, instance)
 
-print(result)
-"""
+    ctl = Control()
+
+    ctl.load(asp_file_path, instance_file_path)
+    # maybe just compute one model
+    ctl.gound([("base", [])])
+
+    result = ctl.solve(on_model=on_model)
+
+    print(result)
