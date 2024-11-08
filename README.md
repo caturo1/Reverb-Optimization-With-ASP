@@ -3,4 +3,6 @@ Code and misc for my bachelor thesis "ASP in audio effect processing for optimiz
 
 The code still is very messy, but you can invoke the program by just running the src\feature_extraction\parameter_optimization.py file with
 
-'python parameter_optimization.py'
+```
+python parameter_optimization.py
+```
