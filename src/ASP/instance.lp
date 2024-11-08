@@ -14,3 +14,9 @@ wet_level(0..100).
     density_population(340).
     mono(1).
     
+    rms(42).
+    dr(87).
+    spectral_centroid(816).
+    density_population(546).
+    mono(1).
+    
