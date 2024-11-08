@@ -46,6 +46,7 @@ def spectral_plot(S_db, y, centroid, flatness, contrast, sr):
 
 
     plt.tight_layout()
+    plt.tight_layout()
     plt.show()
 """
 
@@ -73,12 +74,15 @@ def mean_spectral_centroid(y, sr):
     mean = np.mean(spec_cen)
     return mean
 
+# not in use yet
 def mean_spectral_flatness(y):
     return librosa.feature.spectral_flatness(y=y)[0]
 
+# not in use yet
 def compute_spectral_rolloff(y, sr):
     return librosa.feature.spectral_rolloff(y=y, sr=sr)
 
+# not in use yet
 def median_spectral_contrast(S, sr):
     return librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
 

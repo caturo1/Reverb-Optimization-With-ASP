@@ -48,14 +48,12 @@ def extract_params(model: Model) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/vocal[av_amp,clean,static,organic].wav')
+    #sample = os.path.join(script_dir, '../../data/vocal[av_amp,clean,static,organic].wav')
     #sample = os.path.join(script_dir, '../../data/cello_climb[quiet,highMids,postprocessed,organic].wav')
-    #sample = os.path.join(script_dir, '../../data/mutsuo_tokyo_exhibition[av_amp,mid-high_freq,suboptimal_recording,organic,noisy].wav')
+    sample = os.path.join(script_dir, '../../data/bassline[loud,low_mid,synthetic,long].wav')
     #sample = os.path.join(script_dir, '../../data/short_spike[av_amp,mid-high,clean,synthetic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
-    
-    print(sample)
 
     # extract values
     y, sr = ia.load_audio(sample)
@@ -75,12 +73,6 @@ def main():
     density_population({int(density)}).
     mono({1}).
     """
-    original_content = None
-    try:
-        with open(instance_file_path, 'r') as f:
-            original_content = f.read()
-    except FileNotFoundError:
-        original_content = ""
 
     base_content = write_instance(instance_file_path, instance)
 
@@ -99,7 +91,7 @@ def main():
     with ctl.solve(yield_=True) as hnd:
         #extract reverb parameters here
         for model in hnd:
-            print(model)
+            #print(model)
             optimal_model = model
         params = extract_params(optimal_model)
 
@@ -125,7 +117,7 @@ def main():
                 o.write(effected)
 
     with open(instance_file_path, 'w') as f:
-        f.write(original_content)
+        f.write(base_content)
 
 
 if __name__ == "__main__":
