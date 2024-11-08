@@ -1,3 +1,6 @@
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
+
+# Ignore specific spectral analysis file
+src/feature_extraction/spectral_analysis.py
