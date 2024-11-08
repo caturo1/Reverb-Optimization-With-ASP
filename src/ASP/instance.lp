@@ -5,18 +5,80 @@ size(0..100).
 spread(0..100).
 wet_level(0..100).
 
-% our analyzed features
-% dr(0..100), rms(0..100), density_population(0..10000), pectral_centroid(0..20000), mono(0..1)
-% We'll append the values here:
-    rms(20).
-    dr(83).
-    spectral_centroid(918).
-    density_population(340).
+% our analyzed features and respective ranges
+% dr(0..100), rms(0..100), density_population(0..10000), 
+% spectral_centroid(0..20000), mono(0..1)
+% We'll append the values dynamically here:
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
     mono(1).
     
-    rms(42).
-    dr(87).
-    spectral_centroid(816).
-    density_population(546).
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
+    mono(1).
+    
+    rms(67).
+    dr(95).
+    spectral_centroid(3971).
+    density_population(335).
     mono(1).
     

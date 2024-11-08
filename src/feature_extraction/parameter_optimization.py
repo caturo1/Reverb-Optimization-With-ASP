@@ -48,7 +48,10 @@ def extract_params(model: Model) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/kick[loud,low,synthetic].wav')
+    sample = os.path.join(script_dir, '../../data/vocal[av_amp,clean,static,organic].wav')
+    #sample = os.path.join(script_dir, '../../data/cello_climb[quiet,highMids,postprocessed,organic].wav')
+    #sample = os.path.join(script_dir, '../../data/mutsuo_tokyo_exhibition[av_amp,mid-high_freq,suboptimal_recording,organic,noisy].wav')
+    #sample = os.path.join(script_dir, '../../data/short_spike[av_amp,mid-high,clean,synthetic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
     
