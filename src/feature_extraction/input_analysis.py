@@ -56,7 +56,7 @@ def load_audio(file):
     # Convert Samples to dBFS
     """R_dB = -6
     R = 10^(R_dB/20)"""
-    y, sr = librosa.load(path=file, sr=RATE, mono=True)
+    y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return y, sr
 
 """

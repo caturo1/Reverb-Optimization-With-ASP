@@ -8,3 +8,9 @@ wet_level(0..100).
 % our analyzed features
 % dr(0..100), rms(0..100), density_population(0..10000), pectral_centroid(0..20000), mono(0..1)
 % We'll append the values here:
+    rms(20).
+    dr(83).
+    spectral_centroid(918).
+    density_population(340).
+    mono(1).
+    

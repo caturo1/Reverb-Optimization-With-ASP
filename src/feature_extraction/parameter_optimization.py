@@ -48,7 +48,7 @@ def extract_params(model: Model) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/schreihals.wav')
+    sample = os.path.join(script_dir, '../../data/kick[loud,low,synthetic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
     
@@ -91,9 +91,12 @@ def main():
     
     params = {}
 
+    print(f"ASP instance parameters: {instance}")
+
     with ctl.solve(yield_=True) as hnd:
         #extract reverb parameters here
         for model in hnd:
+            print(model)
             optimal_model = model
         params = extract_params(optimal_model)
 
