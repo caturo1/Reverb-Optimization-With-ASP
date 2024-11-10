@@ -60,6 +60,7 @@ def main():
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
 
     # extract values
+    # TODO completely streamline features for stereo signals
     y, sr = ia.load_audio(sample)
     print(y.shape)
     S = ia.compute_STFT(y=y, sr=sr)
@@ -76,6 +77,9 @@ def main():
     print(s_flatness.shape, s_rolloff.shape)
     mono = check_mono(y)
 
+    # implement pipeline properly
+    # maybe try snr with noise floor estimate as most silent part in the
+    # recording
 
     # create current instance facts to parse into instance.lp
     instance = f"""

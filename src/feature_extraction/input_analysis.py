@@ -86,6 +86,12 @@ def compute_spectral_rolloff(y, sr):
 
 # compute zero-crossings
 
+# onset detection
+
+# stereo amplitude and phase differences
+
+# mid/side analysis
+
 # not in use yet
 def median_spectral_contrast(S, sr):
     return librosa.feature.spectral_contrast(S=np.abs(S), sr=sr)
