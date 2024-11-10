@@ -9,6 +9,7 @@ import numpy.typing as npt
 CHUNK = 2048
 CHANNELS = 2
 RATE = 44_100
+BIT_DEPTH = 16
 
 def normalize_signal(sig):
     rms = np.sqrt(np.mean(sig**2))
@@ -55,8 +56,6 @@ def rms_to_db(rms):
 
 def load_audio(file):
     # Convert Samples to dBFS
-    """R_dB = -6
-    R = 10^(R_dB/20)"""
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return y, sr
 
@@ -70,17 +69,22 @@ def compute_STFT(y, sr):
     return S
 
 def mean_spectral_centroid(y, sr):
-    spec_cen = librosa.feature.spectral_centroid(y=y, sr=sr)[0]
+    # at silent parts, high frequency components might dominate,
+    # therefore add constant term
+    spec_cen = librosa.feature.spectral_centroid(y=y+1e-10, sr=sr)[0]
     mean = np.mean(spec_cen)
     return mean
 
 # not in use yet
 def mean_spectral_flatness(y):
-    return librosa.feature.spectral_flatness(y=y)[0]
+    return librosa.feature.spectral_flatness(y=y)
 
 # not in use yet
 def compute_spectral_rolloff(y, sr):
-    return librosa.feature.spectral_rolloff(y=y, sr=sr)
+    rolloff = librosa.feature.spectral_rolloff(y=y, sr=sr)
+    return rolloff
+
+# compute zero-crossings
 
 # not in use yet
 def median_spectral_contrast(S, sr):

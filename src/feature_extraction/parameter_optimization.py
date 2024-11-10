@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 from clingo import Model
 from clingo.control import Control
@@ -44,6 +45,9 @@ def extract_params(model: Model) -> dict:
         
     return params
 
+def check_mono(sample) -> int:
+    return int(sample.ndim == 1) or int(sample.shape[0] == 1)
+
 
 def main():
         
@@ -57,13 +61,21 @@ def main():
 
     # extract values
     y, sr = ia.load_audio(sample)
+    print(y.shape)
     S = ia.compute_STFT(y=y, sr=sr)
-    
+
     # use sample as input for rms
     rms, rms_mean = ia.rms_features(y)
+    print(rms.shape)
     dyn_rms = ia.compute_dynamic_rms(rms)
     mean_spectral_centroid = np.rint(ia.mean_spectral_centroid(y, sr))
     density = (100 - dyn_rms) * rms_mean
+    s_flatness = ia.mean_spectral_flatness(y)
+    s_rolloff = ia.compute_spectral_rolloff(y=y, sr=sr)
+    np.set_printoptions(threshold=sys.maxsize)
+    print(s_flatness.shape, s_rolloff.shape)
+    mono = check_mono(y)
+
 
     # create current instance facts to parse into instance.lp
     instance = f"""
@@ -71,7 +83,7 @@ def main():
     dr({int(dyn_rms)}).
     spectral_centroid({int(mean_spectral_centroid)}).
     density_population({int(density)}).
-    mono({1}).
+    mono({mono}).
     """
 
     base_content = write_instance(instance_file_path, instance)
