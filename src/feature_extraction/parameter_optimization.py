@@ -7,46 +7,7 @@ from pedalboard import Pedalboard, Reverb
 from pedalboard.io import AudioFile
 
 import input_analysis as ia
-import audio_features 
-
-def write_instance(instance_file_path, instance) -> str:
-    try: 
-        with open(instance_file_path, 'r') as instance_file:
-            instance_content = instance_file.read()
-        new_instance_content = instance_content + instance
-        
-        try:
-            with open(instance_file_path, 'w') as instance_file:
-                instance_file.write(new_instance_content)
-        except IOError:
-            with open(instance_file_path, 'w') as instance_file:
-                instance_file.write(instance_content)
-            print("File not found. Restored instance.lp")
-            raise
-    except FileNotFoundError:
-        print("Instance File not found")
-        new_instance_content = instance
-    return instance_content
-
-def extract_params(model: Model) -> dict:
-    params = {}
-    for symbol in model.symbols(shown=True):
-        name = symbol.name
-        value = symbol.arguments[0].number
-
-        if name == "selected_size":
-            params["size"] = value / 100
-        elif name == "selected_damp":
-            params["damping"] = value / 100
-        elif name == "selected_wet":
-            params["wet"] = value / 100
-        elif name == "selected_spread":
-            params["spread"] = value / 100
-        
-    return params
-
-def check_mono(sample) -> int:
-    return int(sample.ndim == 1) or int(sample.shape[0] == 1)
+import feature_extraction.AudioFeatures as AudioFeatures 
 
 
 def main():
@@ -62,8 +23,9 @@ def main():
     # extract values
     # TODO completely streamline features for stereo signals
     y, sr = ia.load_audio(sample)
-    print(y.shape)
     S = ia.compute_STFT(y=y, sr=sr)
+    y = ia.to_stereo(y)
+
 
     # use sample as input for rms
     rms, rms_mean = ia.rms_features(y)
@@ -75,7 +37,6 @@ def main():
     s_rolloff = ia.compute_spectral_rolloff(y=y, sr=sr)
     np.set_printoptions(threshold=sys.maxsize)
     print(s_flatness.shape, s_rolloff.shape)
-    mono = check_mono(y)
 
     # implement pipeline properly
     # maybe try snr with noise floor estimate as most silent part in the
@@ -89,7 +50,7 @@ def main():
     density_population({int(density)}).
     mono({mono}).
     """
-
+#messy --> refactor into ASPHandler
     base_content = write_instance(instance_file_path, instance)
 
     # start grounding and solve
