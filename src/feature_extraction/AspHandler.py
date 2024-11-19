@@ -1,9 +1,10 @@
-from clingo import Model
+from clingo import Model, Control
 
 class AspHandler:
-    def __init__(self, instance_file_path, instance) -> None:
+    def __init__(self, instance_file_path, asp_file_path) -> None:
         self.instance_file_path = instance_file_path
-        self.instance_content = instance
+        self.asp_file_path = asp_file_path
+        self.ctl = Control()
 
     def write_instance(self, instance: str) -> str:
             try: 
@@ -40,4 +41,20 @@ class AspHandler:
             elif name == "selected_spread":
                 params["spread"] = value / 100
             
+        return params
+    
+    # add error handling
+    def solve(self, instance: str):
+        params = {}
+
+        self.write_instance(instance)
+        
+        self.ctl.load(self.instance_file_path)
+        self.ctl.load(self.asp_file_path)
+        self.ctl.ground([("base", [])])
+        
+        with self.ctl.solve(yield_=True) as hnd:
+            for model in hnd:
+                optional_model = model
+            params = self.extract_params(optional_model)               
         return params
