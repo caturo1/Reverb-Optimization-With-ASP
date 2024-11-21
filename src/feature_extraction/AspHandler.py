@@ -14,8 +14,6 @@ class AspHandler:
         self.asp_file_path = asp_file_path
         self.input_instance = self.create_instance(features)
         self.base_content = self.write_instance()
-        self.extract_params = self.extract_params()
-        self.ctl = Control()
 
 
     def write_instance(self) -> str:
