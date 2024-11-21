@@ -17,11 +17,11 @@ class AudioFeatures:
     spectral_rolloff: int
     """
     
-    def __init__(self, y: np.ndarray, sr: int, S):
-        self.rms, rms_mean, self.rms_l, self.rms_r = ia.rms_features(y)
+    def __init__(self, y: np.ndarray, sr: int, S: np.ndarray):
+        self.rms, rms_mean, self.rms_left, self.rms_right = ia.rms_features(y)
         self.dynamic_range = ia.compute_dynamic_rms(self.rms)
-        self.density = (100 - self.dyn_rms) * rms_mean
+        self.density = (100 - self.dynamic_range) * rms_mean
         self.mid, self.side = ia.mid_side(y)
-        self.spectral_centroid = ia.mean_spectral_centroid(y)
-        self.spectral_flatness = ia.mean_spectral_flatness(y)
+        self.spectral_centroid = ia.mean_spectral_centroid(y=y, sr=sr)
+        self.spectral_flatness = ia.mean_spectral_flatness(y=y)
 

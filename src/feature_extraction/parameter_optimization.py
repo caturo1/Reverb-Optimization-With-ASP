@@ -4,8 +4,8 @@ from clingo.control import Control
 from pedalboard import Pedalboard, Reverb
 from pedalboard.io import AudioFile
 import input_analysis as ia
-import feature_extraction.AudioFeatures as AudioFeatures 
-import AspHandler
+from AudioFeatures import AudioFeatures
+from AspHandler import AspHandler
 
 def main():
         
@@ -17,7 +17,7 @@ def main():
     y, sr = ia.load_audio(sample)
     S = ia.compute_STFT(y=y, sr=sr)
 
-    features = AudioFeatures(y, S)
+    features = AudioFeatures(y, sr, S)
     handle = AspHandler(instance_file_path, asp_file_path, features)
 
     ctl = Control()

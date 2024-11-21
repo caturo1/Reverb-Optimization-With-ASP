@@ -50,7 +50,7 @@ class AspHandler:
         rms({features.rms}).
         rms_left({features.rms_left}).
         rms_right({features.rms_right}).
-        dr({features.dyn_rms}).
+        dr({features.dynamic_range}).
         density_population({features.density}).
         mid({features.mid}).
         side({features.side}).
