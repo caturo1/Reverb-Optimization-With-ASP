@@ -27,13 +27,13 @@ def rms_to_db(rms) -> float:
 def load_audio(file) -> Tuple[np.NDArray[np.float32],int]:
     # Convert Samples to dBFS
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
-    return y, sr
+    return to_stereo(y), sr
 
 # create stereo signal by duplicating the mono signal
 def to_stereo(y) -> Tuple[np.NDArray[np.float32],np.NDArray[np.float32]]:
     mono = y.ndim == 1 or y.shape[0] == 1
     if not mono: 
-        return 
+        return y
     return np.vstack((y,y))
 
 # To compute the 
@@ -50,18 +50,17 @@ def mean_spectral_centroid(y, sr) -> Tuple[float,float]:
     # therefore add constant term
     spec_cen_left = librosa.feature.spectral_centroid(y=y[0]+1e-10, sr=sr)[0]
     spec_cen_right = librosa.feature.spectral_centroid(y=y[1]+1e-10, sr=sr)[0]
-    mean_spectral_centroid = np.mean(np.mean(spec_cen_left) + np.mean(spec_cen_right))
-    return mean_spectral_centroid
+    mean_spectral_centroid = 0.5 * (np.mean(spec_cen_left) + np.mean(spec_cen_right))
+    return np.rint(mean_spectral_centroid)
 
 # measures noisiness vs tonalness
 def mean_spectral_flatness(y) -> Tuple[float,float]:
     flatness_left = librosa.feature.spectral_flatness(y=y[0])
     flatness_right = librosa.feature.spectral_flatness(y=y[1])
-    mean_flatness_left = np.mean(flatness_left)
-    mean_flatness_right = np.mean(flatness_right)
-    return mean_flatness_left, mean_flatness_right
+    mean_flatness = 0.5 * (np.mean(flatness_left) + np.mean(flatness_right))
+    return np.rint(mean_flatness)
 
-# not in use yet
+# not in use yet -- indication about audio bandwith in low/high freqs
 def compute_spectral_rolloff(y, sr) -> Tuple[np.NDArray[np.float32],np.NDArray[np.float32]]:
     rolloff_left = librosa.feature.spectral_rolloff(y=y[0], sr=sr)[0]
     rolloff_right = librosa.feature.spectral_rolloff(y=y[1], sr=sr)[0]
@@ -76,7 +75,7 @@ def noisyness(y):
     return np.mean(librosa.feature.zero_crossing_rate(y))
 
 # mid/side analysis for stereo spread parameter 
-def mid_side(y, is_mono=False) ->Tuple[np.NDArray[np.float32],np.NDArray[np.float32]]:
+def mid_side(y) ->Tuple[np.NDArray[np.float32],np.NDArray[np.float32]]:
     mid = 0.5 * (y[0] + y[1])
     side = 0.5 * (y[0] - y[1])
     
@@ -90,7 +89,9 @@ def rms_to_dB(rms, eps=1e-20):
 # scaling, such that ASP can deal with the values
 def rms_features(y) -> Tuple[npt.NDArray[np.float32], int]:
     scaler = MinMaxScaler(feature_range=(0,100))
-    rms = librosa.feature.rms(y=y[0])
+    rms = librosa.feature.rms(y=librosa.to_mono(y))
+    rms_left = librosa.feature.rms(y[0])
+    rms_right = librosa.feature.rms(y[1])
     scaled_rms = scaler.fit_transform(rms[0].reshape(-1, 1))
     rms_mean = np.rint(np.mean(scaled_rms))
     return scaled_rms, rms_mean
