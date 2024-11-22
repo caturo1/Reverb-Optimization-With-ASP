@@ -20,22 +20,3 @@ wet_level(0..100).
 % spectral flatness ()
 % spectral_spread(0.20_000)
 % We'll append the values dynamically here:
-
-rms(20).
-rms_channel_balance(0).
-dr(83).
-density_population(340).
-mid(50).
-side(49).
-spectral_centroid(910).
-spectral_flatness(3).
-spectral_spread(1205).
-rms(71).
-rms_channel_balance(10).
-dr(66).
-density_population(2414).
-mid(51).
-side(43).
-spectral_centroid(1145).
-spectral_flatness(0).
-spectral_spread(1630).
