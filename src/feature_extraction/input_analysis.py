@@ -113,6 +113,7 @@ def mean_spectral_centroid(
     mean_spectral_centroid = np.rint(np.mean([spec_cen_left, spec_cen_right]))
     return mean_spectral_centroid, spec_cen_left, spec_cen_right
 
+#TODO: Check this method again (always 0, probably due to lack of scaling)
 def mean_spectral_flatness(
         y: Optional[np.ndarray]
         ) -> Tuple[float,float]:
@@ -126,6 +127,7 @@ def mean_spectral_flatness(
     mean_flatness = 0.5 * (np.mean(flatness_left) + np.mean(flatness_right))
     return np.rint(mean_flatness)
 
+#TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)
 def spectral_spread(
         S: Optional[np.ndarray],
         sr: float,
@@ -137,6 +139,10 @@ def spectral_spread(
 
     Hints at timbre by describing how stationary the sound is.
     Used for getting a better spectral resolution of the input.
+    Spread is given in Hz, that means:
+    - ~[0,500]: concentrated frequency content
+    - ~[500-2000]: slight timbre variations
+    - ~[>2000]: volatile timbre (quite possibly noisy and harsh)
     """
 
     freqs = librosa.fft_frequencies(sr=sr, n_fft=2048*2)
