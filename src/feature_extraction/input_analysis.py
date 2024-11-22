@@ -15,6 +15,10 @@ def normalize_signal(sig: Optional[np.ndarray]) -> Optional[np.ndarray]:
     rms = np.sqrt(np.mean(sig**2))
     return sig / rms if rms > 0 else sig
 
+def rms_to_db(rms) -> float:
+    """Just to compare with iZotope results"""
+
+    return 20 * np.log10(rms + 1e-10)
 
 def load_audio(file: str) -> Tuple[np.ndarray[np.float32],int]:
     """Convert Samples to dBFS."""
@@ -68,16 +72,22 @@ def rms_features(
     corresponding reverb parameters.
     """
 
-    rms = librosa.feature.rms(y=librosa.to_mono(y))[0]
+    if y is None or y.ndim != 2 or y.shape[1] == 0:
+        raise ValueError("Input has to be a 2D non-empty array. Check again.")
+
+    rms = librosa.feature.rms(y=librosa.to_mono(y[0]))[0]
     rms_left = librosa.feature.rms(y=y[0])[0]
     rms_right = librosa.feature.rms(y=y[1])[0]
+
     scaled_rms = asp_scaling(rms.reshape(-1, 1))
     scaled_left = asp_scaling(rms_left.reshape(-1, 1))
     scaled_right = asp_scaling(rms_right.reshape(-1, 1))
+
     rms_mean = np.rint(np.mean(scaled_rms))
     rms_left_mean = np.rint(np.mean(scaled_left))
     rms_right_mean = np.rint(np.mean(scaled_right))
     rms_channel_balance = np.rint(np.abs(rms_left_mean - rms_right_mean))
+
     return scaled_rms, rms_mean, rms_channel_balance
 
 
@@ -114,7 +124,7 @@ def mean_spectral_centroid(
     mean_spectral_centroid = np.rint(np.mean([spec_cen_left, spec_cen_right]))
     return mean_spectral_centroid, spec_cen_left, spec_cen_right
 
-#TODO: Check this method again (always 0, probably due to lack of scaling)
+# scaling is odd (pure noise had values of 8 on a scale of 0..100)
 def mean_spectral_flatness(
         y: Optional[np.ndarray]
         ) -> Tuple[float,float]:
@@ -127,9 +137,10 @@ def mean_spectral_flatness(
     - The closer the result to 0, the more tonal it is
     - The closer the result to 100, the more noisy it is
     """
-    flatness_left = librosa.feature.spectral_flatness(y=y[0])
-    flatness_right = librosa.feature.spectral_flatness(y=y[1])
-    mean_flatness = np.mean([flatness_left*100, flatness_right*100])
+
+    flatness_left = (librosa.feature.spectral_flatness(y=y[0])[0]) * 100
+    flatness_right = (librosa.feature.spectral_flatness(y=y[1])[0]) * 100
+    mean_flatness = np.mean([flatness_left, flatness_right])
     return np.rint(mean_flatness)
 
 #TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)

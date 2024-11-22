@@ -27,7 +27,7 @@ def extract_params(model: Model, params: dict) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/piano[av._amp,large_freq_spec,organic].wav')
+    sample = os.path.join(script_dir, '../../data/pure_noise[loud, high,noise,synthetic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
 
