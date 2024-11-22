@@ -1,5 +1,6 @@
 import os
 from clingo import Model
+import time
 from clingo.control import Control
 from pedalboard import Pedalboard, Reverb
 from pedalboard.io import AudioFile
@@ -26,15 +27,25 @@ def extract_params(model: Model, params: dict) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/cello_climb[quiet,highMids,postprocessed,organic].wav')
+    sample = os.path.join(script_dir, '../../data/bassline[loud,low_mid,synthetic,long].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
 
     y, sr = ia.load_audio(sample)
     S = ia.compute_STFT(y=y, sr=sr)
 
+    start_time = time.perf_counter()
+
     features = AudioFeatures(y=y, sr=sr, S=S)
-    handle = AspHandler(instance_file_path, asp_file_path, features)
+
+    end_time = time.perf_counter()
+    time_elapsed = end_time - start_time
+    file_duration = len(y[0]) / ia.RATE
+
+    print(f"It took {time_elapsed:.2f} seconds for a {file_duration:.2f} second long file to initialize all the features, "
+          f"which takes in relation {time_elapsed / file_duration:.2f} part of the signal length")
+
+    AspHandler(instance_file_path, asp_file_path, features)
 
     # ASP guessing
     ctl = Control()
@@ -45,9 +56,8 @@ def main():
     params = {}
 
     with ctl.solve(yield_=True) as hnd:
-        #extract reverb parameters here
         for model in hnd:
-            #print(model)
+            print(model)
             optimal_model = model
         print(optimal_model)
         params = extract_params(optimal_model, params)

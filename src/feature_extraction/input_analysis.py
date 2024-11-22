@@ -120,11 +120,15 @@ def mean_spectral_flatness(
     """
     Noisiness vs Tonalness
     
-    This gives us hints about dry/wet settings and damping
+    This gives us hints about dry/wet settings and damping.
+    The librosa return values are on a scale of [0,1] thus
+    appropiate scaling for ASP. 
+    - The closer the result to 0, the more tonal it is
+    - The closer the result to 100, the more noisy it is
     """
     flatness_left = librosa.feature.spectral_flatness(y=y[0])
     flatness_right = librosa.feature.spectral_flatness(y=y[1])
-    mean_flatness = 0.5 * (np.mean(flatness_left) + np.mean(flatness_right))
+    mean_flatness = np.mean([flatness_left*100, flatness_right*100])
     return np.rint(mean_flatness)
 
 #TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)

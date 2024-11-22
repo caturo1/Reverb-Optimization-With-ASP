@@ -42,12 +42,12 @@ class AspHandler:
         """Creation of an instance string describing our input for ASP guessing"""
         
         return f"""
-    rms({int(features.rms_mean)}).
-    rms_channel_balance({int(features.rms_channel_balance)}).
-    dr({int(features.dynamic_range)}).
-    density_population({int(features.density)}).
-    mid({int(features.mid)}).
-    side({int(features.side)}).
-    spectral_centroid({int(features.spectral_centroid)}).
-    spectral_flatness({int(features.spectral_flatness)}).
-    spectral_spread({int(features.spectral_spread)})."""
+rms({int(features.rms_mean)}).
+rms_channel_balance({int(features.rms_channel_balance)}).
+dr({int(features.dynamic_range)}).
+density_population({int(features.density)}).
+mid({int(features.mid)}).
+side({int(features.side)}).
+spectral_centroid({int(features.spectral_centroid)}).
+spectral_flatness({int(features.spectral_flatness)}).
+spectral_spread({int(features.spectral_spread)})."""
