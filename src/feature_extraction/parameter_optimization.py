@@ -27,7 +27,7 @@ def extract_params(model: Model, params: dict) -> dict:
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/bassline[loud,low_mid,synthetic,long].wav')
+    sample = os.path.join(script_dir, '../../data/piano[av._amp,large_freq_spec,organic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
 
@@ -57,10 +57,9 @@ def main():
 
     with ctl.solve(yield_=True) as hnd:
         for model in hnd:
+            mmodel = model
             print(model)
-            optimal_model = model
-        print(optimal_model)
-        params = extract_params(optimal_model, params)
+        params = extract_params(mmodel, params=params)
 
     print(params, type(params))
     

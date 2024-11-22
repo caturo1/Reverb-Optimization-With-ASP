@@ -23,6 +23,7 @@ class AudioFeatures:
         self.dynamic_range = ia.compute_dynamic_rms(rms)
         self.density = (100 - self.dynamic_range) * self.rms_mean
         self.mid, self.side = ia.mid_side(y)
+        self.cross_corr = ia.cross_correlation(y)
         self.spectral_centroid, centroid_l, centroid_r = ia.mean_spectral_centroid(y=y, sr=sr)
         self.spectral_flatness = ia.mean_spectral_flatness(y=y)
         self.spectral_spread = ia.spectral_spread(S=S, sr=sr, centroid_left=centroid_l, centroid_right=centroid_r)

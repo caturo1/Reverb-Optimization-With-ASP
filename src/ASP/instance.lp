@@ -14,6 +14,7 @@ wet_level(0..100).
 % features related to stereo information
 % mid(0..100)
 % side(0..100)
+% cross_corr (0..200)
 % rm_channel_balace(0..100),
 % features related to spectral image
 % spectral_centroid(0..20_000)

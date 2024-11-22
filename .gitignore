@@ -4,3 +4,5 @@ __pycache__/
 
 # Ignore specific spectral analysis file
 src/feature_extraction/spectral_analysis.py
+src/ASP/instance.lp
+processed_data
