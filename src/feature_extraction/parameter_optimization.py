@@ -7,19 +7,36 @@ import input_analysis as ia
 from AudioFeatures import AudioFeatures
 from AspHandler import AspHandler
 
+def extract_params(model: Model, params: dict) -> dict:
+    """Placeholder method for extracting model parameters"""
+    for symbol in model.symbols(shown=True):
+        name = symbol.name
+        value = symbol.arguments[0].number
+
+        if name == "selected_size":
+            params["size"] = value / 100
+        elif name == "selected_damp":
+            params["damping"] = value / 100
+        elif name == "selected_wet":
+            params["wet"] = value / 100
+        elif name == "selected_spread":
+            params["spread"] = value / 100
+    return params
+
 def main():
         
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    sample = os.path.join(script_dir, '../../data/vocal[av_amp,clean,static,organic].wav')
+    sample = os.path.join(script_dir, '../../data/cello_climb[quiet,highMids,postprocessed,organic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
     instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
 
     y, sr = ia.load_audio(sample)
     S = ia.compute_STFT(y=y, sr=sr)
 
-    features = AudioFeatures(y, sr, S)
+    features = AudioFeatures(y=y, sr=sr, S=S)
     handle = AspHandler(instance_file_path, asp_file_path, features)
 
+    # ASP guessing
     ctl = Control()
     ctl.load(instance_file_path)
     ctl.load(asp_file_path)
@@ -32,25 +49,10 @@ def main():
         for model in hnd:
             #print(model)
             optimal_model = model
-        params = extract_params(optimal_model)
+        print(optimal_model)
+        params = extract_params(optimal_model, params)
 
-    def extract_params(model: Model) -> dict:
-        for symbol in model.symbols(shown=True):
-            name = symbol.name
-            value = symbol.arguments[0].number
-
-            if name == "selected_size":
-                params["size"] = value / 100
-            elif name == "selected_damp":
-                params["damping"] = value / 100
-            elif name == "selected_wet":
-                params["wet"] = value / 100
-            elif name == "selected_spread":
-                params["spread"] = value / 100
-        print(f"ASP instance parameters: {handle.instance}")
-        with open(instance_file_path, 'w') as f:
-            f.write(handle.base_content)
-
+    print(params, type(params))
     
     # apply reverb
     output_dir = os.path.join(script_dir, '../../processed_data')
