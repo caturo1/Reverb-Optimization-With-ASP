@@ -53,10 +53,11 @@ def muddiness_analyzation(y_processed: np.ndarray, mel_S: Optional[np.ndarray], 
     high_total = scores["high"] - sum(scores[key] for key in scores)
 
     # maybe adjust the thresholds or assign differenct weights
+    # maybe don't assign an overall score and take care of this in the encoding
     overall_score = (
-        (mid_ratio / -4.5) * 40 +
-        (1 - bass_to_mid_ratio / 1.6) * 30 +
-        (1 - high_total / -6.0) * 30
+        (mid_ratio / thresh_1) * 40 +
+        (1 - bass_to_mid_ratio / thresh_2) * 30 +
+        (1 - high_total / thresh_3) * 30
         ) * 100
     
     return bass_ratio, mid_ratio, bass_to_mid_ratio, overall_score
