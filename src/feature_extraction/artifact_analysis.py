@@ -52,6 +52,7 @@ def muddiness_analyzation(y_processed: np.ndarray, mel_S: Optional[np.ndarray], 
     bass_to_mid_ratio = scores["bass"] - scores["mid"]
     high_total = scores["high"] - sum(scores[key] for key in scores)
 
+    # maybe adjust the thresholds or assign differenct weights
     overall_score = (
         (mid_ratio / -4.5) * 40 +
         (1 - bass_to_mid_ratio / 1.6) * 30 +
@@ -133,7 +134,7 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
 
     return density_ratio, density_difference
 
-def spectral_ringing(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
+def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     """
     Detect clustering of peaks to detect irritating resonances. 
     We compare it to the clustering of the original input in order to avoid 
@@ -174,6 +175,7 @@ def spectral_ringing(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     return int(spacing_regularity_diff), int(clustering_diff), int(resonance_diff), int(p_resonance_score), int(p_cluster_score)
 
 # have to handle normalization before peak detection
+# I could apply perceptual weighting
 def ringing(S: np.ndarray, sr, frame_len):
     """
     Ringing frequency analyzer
