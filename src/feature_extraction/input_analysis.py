@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple, Optional
-import numpy.typing as npt
 
 RATE = 44_100
 SQRT_2 = np.sqrt(2)
@@ -204,30 +203,6 @@ def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[
     mid = np.rint(np.mean(scaled_sum))
     side = np.rint(np.mean(scaled_diff))
     return mid, side
-
-def cross_correlation(y: Optional[np.ndarray]) -> float:
-    """
-    Calculation of cross correlation based on StereoProcessing paper.
-
-    Parameters:
-    y: 2D array with y[0] as left and y[1] as right channel
-    
-    Return:
-    correlation: Range between [0,200] for ASP guessing where
-    - prev 0 -> 100
-    - prev 1 -> 200
-    - prev -1 -> 0
-    """
-
-    if (y is None or y.ndim != 2 or y.shape[1] == 0):
-        raise ValueError(f"Input has to be 2D and non-empty. Check again.")
-
-    numerator = np.mean(y[0] * y[1])
-    denom = np.sqrt((np.mean(y[0] ** 2) + np.mean(y[1] ** 2)) + 1e-10)
-    c = ((numerator / denom) + 1) * 100
-
-    return c
-
 
 # TODO transient detection (not sure yet, onset detection/COG/librosa peak_pick/flux)
 # Transients may lead to changes of sound quality when manipulating the signal.

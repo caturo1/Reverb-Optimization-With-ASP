@@ -48,7 +48,6 @@ dr({int(features.dynamic_range)}).
 density_population({int(features.density)}).
 mid({int(features.mid)}).
 side({int(features.side)}).
-cross_corr({int(features.cross_corr)}).
 spectral_centroid({int(features.spectral_centroid)}).
 spectral_flatness({int(features.spectral_flatness)}).
 spectral_spread({int(features.spectral_spread)})."""

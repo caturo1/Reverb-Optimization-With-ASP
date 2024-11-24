@@ -4,7 +4,7 @@
 1 { selected_wet(W) : wet_level(W) } 1.
 1 { selected_spread(S) : spread(S) } 1.
 
-:- selected_size(R), selected_wet(W), W + R > 150.
+:- selected_size(R), selected_wet(W), W + R > 130.
 :- selected_size(R), R < 5.
 
 :- selected_damp(D), spectral_centroid(S), S < 500, D > 25.
@@ -13,7 +13,7 @@
 :- density_population(P), 
    selected_wet(SW), 
    selected_damp(SD), 
-   P > 3500, SW > 40, SD < 40.
+   P > 3500, SW > 40, SD < 40. 
 
 :- spectral_centroid(C), 
    spectral_flatness(F), 
@@ -29,10 +29,6 @@
 
 :- mid(M), side(X), selected_spread(Y), X > M, Y > 30.
 :- mid(M), side(X), selected_spread(Y), M > X, Y < 40.
-
-#minimize { D : selected_damp(D), spectral_centroid(C), C < 900 }.
-#maximize { W : selected_wet(W), density_population(P), P < 800 }.
-#minimize { R : selected_size(R), spectral_spread(S), S > 3000 }.
 
 #show selected_size/1.
 #show selected_damp/1.

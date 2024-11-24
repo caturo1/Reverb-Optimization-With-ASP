@@ -8,7 +8,7 @@ import input_analysis as ia
 from AudioFeatures import AudioFeatures
 from AspHandler import AspHandler
 
-def extract_params(model: Model, params: dict) -> dict:
+def on_model(model: Model, params: dict) -> dict:
     """Placeholder method for extracting model parameters"""
     for symbol in model.symbols(shown=True):
         name = symbol.name
@@ -23,6 +23,17 @@ def extract_params(model: Model, params: dict) -> dict:
         elif name == "selected_spread":
             params["spread"] = value / 100
     return params
+
+def run(self, instance_file_path, asp_file_path, params):
+    ctl = Control()
+    ctl.load(instance_file_path)
+    ctl.load(asp_file_path)
+    ctl.ground([("base", [])], context=self)
+    ctl.solve(on_model=parameter_optimization.on_model(params))
+    
+    params = {}
+
+    current_model = ctl.solve(on_model=print)
 
 def main():
         
@@ -48,18 +59,8 @@ def main():
     AspHandler(instance_file_path, asp_file_path, features)
 
     # ASP guessing
-    ctl = Control()
-    ctl.load(instance_file_path)
-    ctl.load(asp_file_path)
-    ctl.ground([("base", [])])
-    
-    params = {}
-
-    with ctl.solve(yield_=True) as hnd:
-        for model in hnd:
-            mmodel = model
-            print(model)
-        params = extract_params(mmodel, params=params)
+ 
+    params = extract_params(current_model, params=params)
 
     print(params, type(params))
     
