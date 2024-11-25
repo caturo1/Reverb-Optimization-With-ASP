@@ -1,15 +1,14 @@
 import os
-from clingo import Model
 import time
-from clingo.control import Control
+from clingo import Model, Control
 from pedalboard import Pedalboard, Reverb
 from pedalboard.io import AudioFile
 import input_analysis as ia
 from AudioFeatures import AudioFeatures
 from AspHandler import AspHandler
 
-def on_model(model: Model, params: dict) -> dict:
-    """Placeholder method for extracting model parameters"""
+def on_model(model: Model, params: dict) -> None:
+    """Extract model parameters."""
     for symbol in model.symbols(shown=True):
         name = symbol.name
         value = symbol.arguments[0].number
@@ -22,21 +21,15 @@ def on_model(model: Model, params: dict) -> dict:
             params["wet"] = value / 100
         elif name == "selected_spread":
             params["spread"] = value / 100
-    return params
 
-def run(self, instance_file_path, asp_file_path, params):
+def run(instance_file_path: str, asp_file_path: str, params: dict) -> None:
     ctl = Control()
     ctl.load(instance_file_path)
     ctl.load(asp_file_path)
-    ctl.ground([("base", [])], context=self)
-    ctl.solve(on_model=parameter_optimization.on_model(params))
-    
-    params = {}
-
-    current_model = ctl.solve(on_model=print)
+    ctl.ground([("base", [])])
+    ctl.solve(on_model=lambda model: on_model(model, params))
 
 def main():
-        
     script_dir = os.path.dirname(os.path.abspath(__file__))
     sample = os.path.join(script_dir, '../../data/pure_noise[loud, high,noise,synthetic].wav')
     asp_file_path = os.path.join(script_dir, '../ASP/encoding.lp')
@@ -59,21 +52,21 @@ def main():
     AspHandler(instance_file_path, asp_file_path, features)
 
     # ASP guessing
- 
-    params = extract_params(current_model, params=params)
+    params = {}
+    run(instance_file_path, asp_file_path, params)
 
     print(params, type(params))
     
-    # apply reverb
+    # Apply reverb
     output_dir = os.path.join(script_dir, '../../processed_data')
     os.makedirs(output_dir, exist_ok=True)
     output_file = os.path.join(output_dir, 'processed_file.wav')
     board = Pedalboard([Reverb(
-                    room_size=params["size"],
-                    damping=params["damping"],
-                    wet_level=params["wet"],
-                    dry_level=1 - params["wet"],
-                    width=params["spread"]
+                    room_size=params.get("size", 0.5),
+                    damping=params.get("damping", 0.5),
+                    wet_level=params.get("wet", 0.5),
+                    dry_level=1 - params.get("wet", 0.5),
+                    width=params.get("spread", 0.5)
                 )])
 
     with AudioFile(sample) as f:
@@ -82,7 +75,6 @@ def main():
                 audio = f.read(f.samplerate)
                 effected = board(audio, f.samplerate, reset=False)
                 o.write(effected)
-
 
 if __name__ == "__main__":
     main()

@@ -24,6 +24,66 @@ FREQ_BANDS = {
 # In general might have to pay attention to the frame length again
 # and maybe use STFT and perceptual weighting instead of mel scale
 # since this might cluster to many frequencies into one bin
+# also, most methods work for one channel so either expand them to stereo input or apply them to each channel
+
+# TODO Implement clipping detector (like 3 successive amplitude peaks above threshold like -0.3 dB or so --audacity's method )
+# Also possible to analyze a histogram and see if we have significant peaks at high levels
+def clippin_analyzer(y, num_bins):
+    """
+    Detection of clipping in one channel of the signal based on 
+    "Detection of Clipped Fragments in Speech Signals" by Sergei Aleinik, Yuri Matveev
+
+    Parameter:
+    - y: One channel of stereo audio
+
+    Returns:
+    Parameter indicating severity of clipping
+    """
+    upper_percentile = np.percentile(y, 97)
+    lower_percentile = np.percentile(y, 3)
+
+    sturgers = np.log2(upper_percentile - lower_percentile) + 1
+
+    num_bins = np.amax(301, sturgers)
+
+    amp_hist, _ = np.histogram(y, bins=num_bins)
+    
+    r_ptr = np.nonzero(amp_hist)[0][-1]
+    l_ptr = np.nonzero(amp_hist)[0][0]
+    current_r = amp_hist[r_ptr]
+    current_l = amp_hist[l_ptr]
+    d_l = 0
+    d_r = 0
+    d_max = 0
+
+    denom = r_ptr - l_ptr
+
+    while (r_ptr > l_ptr):
+
+        if (l_ptr >= len(amp_hist) or r_ptr < 0):
+            break
+
+        r_ptr -= 1
+        l_ptr += 1        
+        y_r = amp_hist[r_ptr]
+        y_l = amp_hist[l_ptr]
+
+        if (y_r > current_r):
+            current_r = y_r
+            d_r = 0
+        else: d_r += 1
+        
+        if (y_l > current_l):
+            current_l = y_l
+            d_l = 0
+        else : d_l += 1
+
+        d_max = np.max(d_max, d_l, d_r)
+    
+    r_cl = 2*d_max / denom if denom > 0 else 0
+
+    return int(min(1.0, r_cl))
+
 
 # Check here again
 def muddiness_analyzation(y_processed: np.ndarray, mel_S: Optional[np.ndarray], input: AudioFeatures):
