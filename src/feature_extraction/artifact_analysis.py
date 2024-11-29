@@ -1,9 +1,12 @@
 import numpy as np
 from typing import Optional, Tuple
 import librosa
-from AudioFeatures import AudioFeatures
+from feature_extraction.InputFeatures import AudioFeatures
 
 RATE = 44_100
+NFFT = 2048*2
+HOPS = 512*2
+BIT_DEPTH = 16
 FREQ_BANDS = {
     "bass" : {
         "range" : (0,400),
@@ -21,6 +24,22 @@ FREQ_BANDS = {
     }
 }
 
+def db_scaling(value) -> int:
+    """Scaling of dB related values
+
+    Args: 
+        value: Input dB value
+    
+    Returns:
+        Integer scaled value on a scale of [0,100]
+    """
+    min = -20*np.log10(2**BIT_DEPTH)
+    max = 0
+
+    x_scaled = (value - min) * 100 / max - min
+
+    return int(max(100,x_scaled))
+
 # In general might have to pay attention to the frame length again
 # and maybe use STFT and perceptual weighting instead of mel scale
 # since this might cluster to many frequencies into one bin
@@ -28,7 +47,7 @@ FREQ_BANDS = {
 
 # TODO Implement clipping detector (like 3 successive amplitude peaks above threshold like -0.3 dB or so --audacity's method )
 # Also possible to analyze a histogram and see if we have significant peaks at high levels
-def clippin_analyzer(y, num_bins):
+def clipping_analyzer(y: np.ndarray):
     """
     Detection of clipping in one channel of the signal based on 
     "Detection of Clipped Fragments in Speech Signals" by Sergei Aleinik, Yuri Matveev
@@ -39,10 +58,8 @@ def clippin_analyzer(y, num_bins):
     Returns:
     Parameter indicating severity of clipping
     """
-    upper_percentile = np.percentile(y, 97)
-    lower_percentile = np.percentile(y, 3)
 
-    sturgers = np.log2(upper_percentile - lower_percentile) + 1
+    sturgers = np.log2(1 - (-1)) + 1
 
     num_bins = np.amax(301, sturgers)
 
@@ -82,11 +99,11 @@ def clippin_analyzer(y, num_bins):
     
     r_cl = 2*d_max / denom if denom > 0 else 0
 
-    return int(min(1.0, r_cl))
+    return int(min(1.0, r_cl)*100)
 
 
 # Check here again
-def muddiness_analyzation(y_processed: np.ndarray, mel_S: Optional[np.ndarray], input: AudioFeatures):
+def muddiness_analyzation(mel_S: Optional[np.ndarray]):
     """
     Approximation of perceived muddiness. To be compared to features of the original audio.
     We could also try to calculate the spectral centroid and compare the shift in the centroid between original and processed audio.
@@ -107,22 +124,14 @@ def muddiness_analyzation(y_processed: np.ndarray, mel_S: Optional[np.ndarray], 
 
     mean = np.mean(scores[key] for key in scores)
 
-    bass_ratio = scores["bass"] - mean
-    mid_ratio = scores["mid"] - mean
-    bass_to_mid_ratio = scores["bass"] - scores["mid"]
-    high_total = scores["high"] - sum(scores[key] for key in scores)
-
-    # maybe adjust the thresholds or assign differenct weights
-    # maybe don't assign an overall score and take care of this in the encoding
-    overall_score = (
-        (mid_ratio / thresh_1) * 40 +
-        (1 - bass_to_mid_ratio / thresh_2) * 30 +
-        (1 - high_total / thresh_3) * 30
-        ) * 100
+    bass_ratio = int(np.abs(scores["bass"] - mean))
+    mid_ratio = int(np.abs(scores["mid"] - mean))
+    bass_to_mid_ratio = int(np.abs(scores["bass"] - scores["mid"]))
     
-    return bass_ratio, mid_ratio, bass_to_mid_ratio, overall_score
+    return db_scaling(bass_ratio), db_scaling(mid_ratio), db_scaling(bass_to_mid_ratio)
 
 
+# implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
     """
     Calculation of cross correlation based on StereoProcessing paper.
@@ -193,14 +202,15 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
     density_ratio = spectral_density_proc / spectral_density_org
     density_difference = spectral_density_proc - spectral_density_org
 
-    return density_ratio, density_difference
+    return int(density_ratio*100), int(density_difference*100)
 
 def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     """
     Detect clustering of peaks to detect irritating resonances. 
     We compare it to the clustering of the original input in order to avoid 
-    adjusting parameters for the wrong error source. 
+    adjusting parameters for the wrong error source (false positives). 
     This is relevant for basically every reverb parameter.
+    We also calculate the regularity of spacing between peaks to detect unnatural reverbration patterns
 
     Parameters:
     S_org: STFT of the original audio
@@ -218,7 +228,7 @@ def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     if (len(spacing_org) < 2 or len(spacing_proc) < 2):
         return 0
     
-    # the regularity of the spacing might indicate ringing and naturalness of reverb (the more irregular the better)
+    # the regularity of the spacing might indicate ringing and naturalness of reverb (the more irregular the better --> irregular reflections are natural)
     o_spacing_regularity = 1 - (np.std(spacing_org) / np.mean(spacing_org))
     p_spacing_regularity = 1 - (np.std(spacing_proc) / np.mean(spacing_proc))
 
@@ -237,7 +247,7 @@ def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
 
 # have to handle normalization before peak detection
 # I could apply perceptual weighting
-def ringing(S: np.ndarray, sr, frame_len):
+def ringing(S: np.ndarray, sr):
     """
     Ringing frequency analyzer
     
@@ -250,7 +260,7 @@ def ringing(S: np.ndarray, sr, frame_len):
     """
     
     mag_dB = np.abs(S)
-    freqs = librosa.fft_frequencies(sr=sr, n_fft=frame_len)
+    freqs = librosa.fft_frequencies(sr=sr, n_fft=2048*2)
 
     peak_tracking = np.zeros(len(freqs),mag_dB.shape[1])
     for frame_idx, frame in enumerate(mag_dB.T):
@@ -259,6 +269,7 @@ def ringing(S: np.ndarray, sr, frame_len):
         peak_tracking[peaks, frame_idx] = 1
 
     lingering = sum(peak_tracking > np.mean(peak_tracking) + np.std(np.sum(peak_tracking, axis=1)))
+    
+    ringing_score = int((lingering/mag_dB.shape[1])*100)
 
-    return lingering
-
+    return ringing_score

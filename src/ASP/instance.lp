@@ -20,4 +20,3 @@ wet_level(0..100).
 % spectral_centroid(0..20_000)
 % spectral flatness ()
 % spectral_spread(0.20_000)
-% We'll append the values dynamically here:

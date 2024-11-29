@@ -1,3 +1,5 @@
+#program base.
+
 % only one value per parameter
 1 { selected_size(R) : size(R) } 1.
 1 { selected_damp(D) : damping(D) } 1.
@@ -33,4 +35,8 @@
 #show selected_size/1.
 #show selected_damp/1.
 #show selected_wet/1.
-#show selected_spread/1.
+#show selected_spread/1.^
+
+
+#program artifact.
+

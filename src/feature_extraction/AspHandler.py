@@ -1,6 +1,6 @@
 import sys
 from typing import Optional
-from AudioFeatures import AudioFeatures
+from InputFeatures import InputFeatures
 
 class AspHandler:
     """
@@ -16,38 +16,26 @@ class AspHandler:
         self.input_instance = self.create_instance(features)
         self.write_instance()
 
-
-    def write_instance(self) -> Optional[str]:
+    @staticmethod
+    def write_instance(input_instance, instance_file_path) -> Optional[str]:
         """Append the extracted input features to the instance.lp file
          
         In case of error: 
         - We couldn't find the file return
         - We have a runtime IO error
         """
-        if not self.input_instance:
+        if not input_instance:
             print("No instance to write")
             sys.exit(1)
 
         try:
-            with open(self.instance_file_path, 'a') as instance_file:
-                instance_file.write(self.input_instance)
+            with open(instance_file_path, 'a') as instance_file:
+                instance_file.write(input_instance)
         except FileNotFoundError:
-            print(f"File {self.instance_file_path} not found.")
+            print(f"File {instance_file_path} not found.")
             sys.exit(1)
         except IOError as e:
-            print(f" IO error when writing to {self.instance_file_path}")
+            print(f" IO error when writing to {instance_file_path}")
             sys.exit(1)
 
-    def create_instance(self, features: AudioFeatures) -> str:
-        """Creation of an instance string describing our input for ASP guessing"""
-        
-        return f"""
-rms({int(features.rms_mean)}).
-rms_channel_balance({int(features.rms_channel_balance)}).
-dr({int(features.dynamic_range)}).
-density_population({int(features.density)}).
-mid({int(features.mid)}).
-side({int(features.side)}).
-spectral_centroid({int(features.spectral_centroid)}).
-spectral_flatness({int(features.spectral_flatness)}).
-spectral_spread({int(features.spectral_spread)})."""
+

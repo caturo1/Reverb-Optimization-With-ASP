@@ -6,6 +6,8 @@ from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple, Optional
 
 RATE = 44_100
+NFFT = 2048*2
+HOPS = 512*2
 SQRT_2 = np.sqrt(2)
 
 def normalize_signal(sig: Optional[np.ndarray]) -> Optional[np.ndarray]:
@@ -20,8 +22,7 @@ def rms_to_db(rms) -> float:
     return 20 * np.log10(rms + 1e-10)
 
 def load_audio(file: str) -> Tuple[np.ndarray[np.float32],int]:
-    """Convert Samples to dBFS."""
-
+    """Load audio input as a stereo file"""
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return to_stereo(y), sr
 
@@ -39,7 +40,8 @@ def to_stereo(
 
 def compute_STFT(
         y: Optional[np.ndarray], 
-        sr: float
+        sr: float,
+        mode: str
         ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
     """
     Computation of the STFT for both stereo channels
@@ -50,10 +52,16 @@ def compute_STFT(
     n_fft is adapted to a sample rate 22_050 but we use a sample rate
     of 44_100 and thus double the window size for proper frequency resolution
     """
-
-    S_left = librosa.stft(y[0], n_fft=2048*2, hop_length=512)
-    S_right = librosa.stft(y[1], n_fft=2048*2, hop_length=512)
-    return S_left, S_right
+    if (mode == "regular"):
+        S_left = librosa.stft(y[0], n_fft=NFFT, hop_length=HOPS)
+        S_right = librosa.stft(y[1], n_fft=NFFT, hop_length=HOPS)
+        return S_left, S_right
+    
+    if (mode == "mel"):
+        mel_left = librosa.feature.melspectrogram(y[0], n_fft=NFFT, hop_length=HOPS)
+        mel_right = librosa.feature.melspectrogram(y[1], n_fft=NFFT, hop_length=HOPS)
+        return mel_left, mel_right
+    
 
 def asp_scaling(arr):
     scaler = MinMaxScaler(feature_range=(0,100))
@@ -118,8 +126,8 @@ def mean_spectral_centroid(
     and ultimetely hints for the room size and damping.
     """
     
-    spec_cen_left = librosa.feature.spectral_centroid(y=y[0]+1e-10, sr=sr, n_fft=2048*2)[0]
-    spec_cen_right = librosa.feature.spectral_centroid(y=y[1]+1e-10, sr=sr, n_fft=2048*2)[0]
+    spec_cen_left = librosa.feature.spectral_centroid(y=y[0]+1e-10, sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
+    spec_cen_right = librosa.feature.spectral_centroid(y=y[1]+1e-10, sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
     mean_spectral_centroid = np.rint(np.mean([spec_cen_left, spec_cen_right]))
     return mean_spectral_centroid, spec_cen_left, spec_cen_right
 
@@ -144,7 +152,8 @@ def mean_spectral_flatness(
 
 #TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)
 def spectral_spread(
-        S: Optional[np.ndarray],
+        S_l: Optional[np.ndarray],
+        S_r: Optional[np.ndarray],
         sr: float,
         centroid_left: np.ndarray,
         centroid_right: np.ndarray
@@ -160,9 +169,9 @@ def spectral_spread(
     - ~[>2000]: volatile timbre (quite possibly noisy and harsh)
     """
 
-    freqs = librosa.fft_frequencies(sr=sr, n_fft=2048*2)
-    S_left_mag = np.abs(S[0])
-    S_right_mag = np.abs(S[1])
+    freqs = librosa.fft_frequencies(sr=sr, n_fft=NFFT)
+    S_left_mag = np.abs(S_l)
+    S_right_mag = np.abs(S_r)
 
     S_left_norm = S_left_mag / (np.sum(S_left_mag, axis=0, keepdims=True) + 1e-10)
     S_right_norm = S_right_mag / (np.sum(S_right_mag, axis=0, keepdims=True) + 1e-10)
