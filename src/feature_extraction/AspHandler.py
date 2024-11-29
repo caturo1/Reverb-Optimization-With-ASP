@@ -1,6 +1,5 @@
 import sys
 from typing import Optional
-from InputFeatures import InputFeatures
 
 class AspHandler:
     """

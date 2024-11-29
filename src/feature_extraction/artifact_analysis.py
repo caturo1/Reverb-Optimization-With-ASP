@@ -1,7 +1,6 @@
 import numpy as np
 from typing import Optional, Tuple
 import librosa
-from feature_extraction.InputFeatures import AudioFeatures
 
 RATE = 44_100
 NFFT = 2048*2
@@ -243,7 +242,7 @@ def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     clustering_diff = o_cluster_score - p_cluster_score
     resonance_diff = o_resonance_score - p_resonance_score
 
-    return int(spacing_regularity_diff), int(clustering_diff), int(resonance_diff), int(p_resonance_score), int(p_cluster_score)
+    return min(int(spacing_regularity_diff)*100), min(int(clustering_diff)*100), int(resonance_diff), int(p_resonance_score), int(p_cluster_score)
 
 # have to handle normalization before peak detection
 # I could apply perceptual weighting
@@ -270,6 +269,7 @@ def ringing(S: np.ndarray, sr):
 
     lingering = sum(peak_tracking > np.mean(peak_tracking) + np.std(np.sum(peak_tracking, axis=1)))
     
+    # maybe wrong scaling
     ringing_score = int((lingering/mag_dB.shape[1])*100)
 
     return ringing_score
