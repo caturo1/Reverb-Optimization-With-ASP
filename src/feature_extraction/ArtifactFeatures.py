@@ -40,8 +40,10 @@ class ArtifactFeatures:
         self.clustering_differential_r, self.resonance_differential_r = aa.spectral_clustering(self.mel_right, mel_r_org)
 
         # analysis for both channels
-        self.lingering_l = aa.ringing(self.mel_l, sr)
-        self.lingering_r = aa.ringing(self.mel_r, sr)
+        # we can roughly estimate that the ringing will be in [0,528]
+        # where 528 will basically never happen. Thresholds will have to be defined later on
+        self.ringing_l = aa.ringing(self.mel_left, mel_l_org)
+        self.ringing_r = aa.ringing(self.mel_right, mel_r_org)
 
     def create_instance(self) -> str:
         """Creates ASP instance string from artifact features."""
@@ -70,6 +72,3 @@ density_ratio_differential_left({int(self.den_ratio_differential_l)}).
 density_difference_differential_left({int(self.den_diff_differential_l)}).
 density_ratio_differential_right({int(self.den_ratio_differential_r)}).
 density_difference_differential_right({int(self.den_diff_differential_r)})."""
-    
-    
-    

@@ -1,5 +1,3 @@
-#program base.
-
 % only one value per parameter
 1 { selected_size(R) : size(R) } 1.
 1 { selected_damp(D) : damping(D) } 1.

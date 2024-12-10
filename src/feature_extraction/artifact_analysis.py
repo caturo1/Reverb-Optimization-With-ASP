@@ -100,7 +100,7 @@ def clipping_analyzer(y: np.ndarray):
     
     r_cl = 2*d_max / denom if denom > 0 else 0
 
-    return int(min(1.0, r_cl)*100)
+    return np.rint(min(1.0, r_cl)*100)
 
 
 # Check here again
@@ -117,7 +117,7 @@ def muddiness_analyzation(mel_S: np.ndarray):
     mel_spec = librosa.power_to_db(mel_S)
     
     n_bins = mel_spec.shape[1]
-    mel_freqs = librosa.mel_frequencies(n_mels=n_bins)
+    mel_freqs = librosa.mel_frequencies(n_mels=n_bins,fmin=20, fmax=20_000)
     mel_concentrated = np.mean(mel_spec, axis=0)
 
     scores = {}
@@ -154,7 +154,7 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
     return c
 
 
-def get_frame_peak_density_spacing(mag_dB: np.ndarray) ->Tuple[np.ndarray, np.ndarray]:
+def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.ndarray]:
     """
     Determine the peak density in each frame of out input spectrogram
     and the spacing of the peaks in every frame
@@ -162,37 +162,40 @@ def get_frame_peak_density_spacing(mag_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
     Parameters:
     Magnitude to dB converted spectrogram of the input audio
     """
-    n_freqs, n_frames = mag_dB.shape
-    freqs = librosa.fft_frequencies(sr=RATE, n_fft=NFFT)
-    
-    # in the process of changing this method
-    peak_tracking = np.zeros(n_frames, n_freqs)
+    n_freqs, n_frames = mel_dB.shape
+    freqs = librosa.mel_frequencies(n_mels=n_freqs, fmin=20, fmax=20_000)
+
+    peak_tracking = np.zeros((n_freqs, n_frames))
     density = np.zeros(shape=n_frames, dtype=float)
-    spacing = []
-
+    spacing = np.full(shape=n_frames * (n_freqs-1), fill_value=np.nan)
     
+    index = 0
     for frame_idx in range(n_frames):
-
         peaks = librosa.util.peak_pick(
-            mag_dB[:,frame_idx], 
+            mel_dB[:,frame_idx], 
             pre_max=3,
             post_max=3,
             pre_avg=3,
             post_avg=3,
             delta=0.35,
             wait=10)
+        # this  gives me just how many peaks I gave per frame in relation to the whole audio
+        # I could expand this to the different frequency bands
         density[frame_idx] = len(peaks) / n_freqs
         
+        peak_tracking[[peaks], frame_idx] = 1
+
         if len(peaks) > 1:
-            peak_spacing = np.diff(peaks)
-            spacing.append(peak_spacing)
-        else:
-            spacing.append(np.array([]))
+            diffs = np.diff(freqs[peaks])
+            upper = len(diffs)
+            spacing[index : index + upper] = diffs
+            index += upper
+    spacing = spacing[~np.isnan(spacing)]
 
-    return density, spacing
+    return density, peak_tracking, spacing
 
 
-def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
+def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, int]:
     """
     Rough measurement of spectral density. 
     The difference between the input and processed audio gives us a measurement about the extent of reverb we can apply
@@ -202,14 +205,11 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
     S_proc: STFT of the processed audio
     """
     
-    mag_org = np.abs(S_org)
-    mag_dB_org = librosa.amplitude_to_db(mag_org)
+    mel_dB_org = librosa.amplitude_to_db(mel_org)
+    mel_dB_proc = librosa.power_to_db(mel_proc)
 
-    mag_proc = np.abs(S_proc)
-    mag_dB_proc = librosa.amplitude_to_db(mag_proc)
-
-    spectral_density_org, _ = get_frame_peak_density_spacing(mag_dB=mag_dB_org)
-    spectral_density_proc, _ = get_frame_peak_density_spacing(mag_dB=mag_dB_proc)
+    spectral_density_org, _, _ = get_frame_peak_density_spacing(mel_dB=mel_dB_org)
+    spectral_density_proc, _, _ = get_frame_peak_density_spacing(mel_dB=mel_dB_proc)
     
     spectral_density_org = np.where(spectral_density_org != 0, spectral_density_org, 1e-10)
     spectral_density_proc = np.where(spectral_density_proc != 0, spectral_density_proc, 1e-10)
@@ -218,7 +218,7 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
     density_ratio = spectral_density_proc / spectral_density_org
     cond = (density_ratio != 1) & ~np.isnan(density_ratio)
     density_deriv = np.extract(cond, density_ratio)
-    density_stability = (1 - len(density_deriv) / mag_dB_org.shape[1]) * 100
+    density_stability = (1 - len(density_deriv) / mel_dB_org.shape[1]) * 100
     
     # measure to which extend the peak density accumulated or disappeared
     combined = spectral_density_proc - spectral_density_org
@@ -231,21 +231,22 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
 def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
     """
     Detect clustering of peaks to detect irritating resonances. 
+    This is a differential analysis to see if we introduce new resonances.
     We compare it to the clustering of the original input in order to avoid 
     adjusting parameters for the wrong error source (false positives). 
     This is relevant for basically every reverb parameter.
-    We also calculate the regularity of spacing between peaks to detect unnatural reverbration patterns
+    We also calculate the regularity of spacing between peaks to detect unnatural reverbration patterns (not anymore, that was stupid)
 
     Parameters:
     S_org: STFT of the original audio
     S_proc: STFT of the processed audio
     """
 
-    mag_dB_org = librosa.power_to_db(mel_org)
-    mag_dB_proc = librosa.power_to_db(mel_proc)
+    mel_dB_org = librosa.power_to_db(mel_org)
+    mel_dB_proc = librosa.power_to_db(mel_proc)
 
-    density_org, spacing_org = get_frame_peak_density_spacing(mag_dB_org)
-    density_proc, spacing_proc = get_frame_peak_density_spacing(mag_dB_proc)
+    density_org, _, spacing_org = get_frame_peak_density_spacing(mel_dB=mel_dB_org)
+    density_proc,_, spacing_proc = get_frame_peak_density_spacing(mel_dB=mel_dB_proc)
     
     if (len(spacing_org) < 2 or len(spacing_proc) < 2):
         print("Reverbrated audio is too short to properly evaluate spacing parameters")
@@ -255,10 +256,10 @@ def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
     o_cluster_score, o_resonance_score = compute_clustering(spacing_org, density_org)
     p_cluster_score, p_resonance_score = compute_clustering(spacing_proc, density_proc)
 
-    clustering_diff = o_cluster_score - p_cluster_score
-    resonance_diff = o_resonance_score - p_resonance_score
+    clustering_diff = p_cluster_score - o_cluster_score
+    resonance_diff = p_resonance_score - o_resonance_score
 
-    return int(clustering_diff)*100, int(resonance_diff)*100
+    return clustering_diff, resonance_diff
 
 def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
     """
@@ -280,41 +281,69 @@ def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
         Number of very close spectral peaks
     """
     if spacing.size == 0 or density.size == 0:
-        return 0.0, 0.0
-
-    mean = np.mean(spacing)
-    cluster_score = sum(spacing[spacing < mean * 0.5] ) / np.mean(density)
-    resonance_score = sum(spacing  < (mean * 0.35))
-
-    return cluster_score, resonance_score
+        return (0.0, 0.0)
 
 
-# have to handle normalization before peak detection
-# I could apply perceptual weighting
-def ringing(S: np.ndarray, sr):
+    # density values in range of [0,1]
+    # threshold have to be exaluated experimentally
+    # both values however are for differential analysis anyway
+    cluster_score = sum(spacing < 60)
+    resonance_score = sum(spacing  < 30)
+
+    return (cluster_score, resonance_score)
+
+
+def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     """
     Ringing frequency analyzer
     
-    Trying to detect ringing by analyzing the occurence of peaks in similar frequency over STFT frames.
-    Might be problematic due to non-periodic, possibly random nature of input audio. 
-    The perceptual weighting of the STFT gives us a good frequency resolution on a perceptual scale.
+    Trying to detect ringing by analyzing the occurence of peaks in similar frequencies
+    over consecutive frames.
+    We define surrounding areas/windows, for relevance and return the maximum
+    for differential analysis.
 
     Parameters:
     S: STFT of processed audio
     """
-    
-    mag_dB = np.abs(S)
-    freqs = librosa.fft_frequencies(sr=sr, n_fft=2048*2)
 
-    peak_tracking = np.zeros(len(freqs),mag_dB.shape[1])
-    for frame_idx, frame in enumerate(mag_dB.T):
-        peaks = librosa.util.peak_pick(frame, pre_max=3, post_max=3, pre_avg=3, post_avg=3, delta=0.5, wait=10)
-        
-        peak_tracking[peaks, frame_idx] = 1
 
-    lingering = sum(peak_tracking > np.mean(peak_tracking) + np.std(np.sum(peak_tracking, axis=1)))
+    _, peak_tracking_org, _= get_frame_peak_density_spacing(mel_org)
+    _, peak_tracking_proc, _= get_frame_peak_density_spacing(mel_proc)
+
+    ringing_org = compute_ringing_score(peak_tracking_org)
+    ringing_proc = compute_ringing_score(peak_tracking_proc)
+
+    differential_score = ringing_proc - ringing_org
+    print(f"The differential score: {differential_score}")
+
+    return differential_score
+
+def compute_ringing_score(peak_tracking: np.ndarray) -> int:
     
-    # maybe wrong scaling
-    ringing_score = int((lingering/mag_dB.shape[1])*100)
+    n_freqs = peak_tracking.shape[0]
+    n_frames = peak_tracking.shape[1]
+    # time interval of 500 ms
+    time_eps = int(np.rint((RATE * 0.5) / HOPS))
+    time_steps = int(np.rint(n_frames/time_eps*2))
+
+    # frequency interval of 5% of frequency bins
+    freq_eps = int(np.rint(n_freqs * 0.05))
+    freq_steps = int(np.rint(n_freqs/freq_eps*2))
+
+    # calculate the peak occurences in 2D window to check
+    # how many closely spaced, time-related peaks are there
+    ringing = np.zeros(shape=(freq_steps, time_steps))
+    frame_idx = 0
+    array_t_idx = 0
+    while (frame_idx := frame_idx + time_eps) <= n_frames - time_eps:
+        freq_idx = 0
+        array_f_idx = 0
+        while (freq_idx := freq_idx + freq_eps) <= n_freqs - freq_eps:
+            ringing[array_f_idx, array_t_idx] = (np.sum(peak_tracking[freq_idx - freq_eps : freq_idx + freq_eps,
+                                              frame_idx - time_eps : frame_idx + time_eps]))
+            array_f_idx += 1
+        array_t_idx += 1
+
+    ringing_score = np.max(ringing) if ringing.size > 0 else 0
 
     return ringing_score

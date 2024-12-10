@@ -59,8 +59,8 @@ def compute_STFT(
         return S_left, S_right
     
     if (mode == "mel"):
-        mel_left = librosa.feature.melspectrogram(y=y[0], n_fft=NFFT, hop_length=HOPS)
-        mel_right = librosa.feature.melspectrogram(y=y[1], n_fft=NFFT, hop_length=HOPS)
+        mel_left = librosa.feature.melspectrogram(y=y[0], n_fft=NFFT, hop_length=HOPS, n_mels=512)
+        mel_right = librosa.feature.melspectrogram(y=y[1], n_fft=NFFT, hop_length=HOPS, n_mels=512)
         return mel_left, mel_right
     
 
