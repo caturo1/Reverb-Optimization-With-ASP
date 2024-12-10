@@ -9,7 +9,7 @@ BIT_DEPTH = 16
 FREQ_BANDS = {
     "bass" : {
         "range" : (0,400),
-        "mask" : lambda f : (f >= 20) & (f <= 400)
+        "mask" : lambda f : f <= 400
     },
 
     "mid" : {
@@ -24,7 +24,7 @@ FREQ_BANDS = {
 }
 
 def db_scaling(value) -> int:
-    """Scaling of dB related values
+    """Scaling of dB related values according to bit-depth of the signal
 
     Args: 
         value: Input dB value
@@ -34,10 +34,12 @@ def db_scaling(value) -> int:
     """
     min = -20*np.log10(2**BIT_DEPTH)
     max = 0
+    eps = 1e-10
+    nom = value - min
+    denum = max - min + eps
+    x_scaled = nom / denum
 
-    x_scaled = (value - min) * 100 / max - min
-
-    return int(max(100,x_scaled))
+    return np.rint(max(100,x_scaled))
 
 # In general might have to pay attention to the frame length again
 # and maybe use STFT and perceptual weighting instead of mel scale
@@ -60,7 +62,7 @@ def clipping_analyzer(y: np.ndarray):
 
     sturgers = np.log2(1 - (-1)) + 1
 
-    num_bins = np.amax(301, sturgers)
+    num_bins = max(301, sturgers)
 
     amp_hist, _ = np.histogram(y, bins=num_bins)
     
@@ -94,7 +96,7 @@ def clipping_analyzer(y: np.ndarray):
             d_l = 0
         else : d_l += 1
 
-        d_max = np.max(d_max, d_l, d_r)
+        d_max = max(d_max, d_l, d_r)
     
     r_cl = 2*d_max / denom if denom > 0 else 0
 
@@ -102,7 +104,7 @@ def clipping_analyzer(y: np.ndarray):
 
 
 # Check here again
-def muddiness_analyzation(mel_S: Optional[np.ndarray]):
+def muddiness_analyzation(mel_S: np.ndarray):
     """
     Approximation of perceived muddiness. To be compared to features of the original audio.
     We could also try to calculate the spectral centroid and compare the shift in the centroid between original and processed audio.
@@ -112,23 +114,20 @@ def muddiness_analyzation(mel_S: Optional[np.ndarray]):
     The latter has a better frequency resolution.
     """
 
-    mel_spec = librosa.amplitude_to_db(np.abs(mel_S))
-
-    mel_freqs = librosa.mel_frequencies(n_mels=mel_spec.shape[0], sr=RATE)
-
-    # get mean dB for each frequency band based on mel spec
-    scores = {
-        key: np.mean(mel_spec[:,FREQ_BANDS[key]["mask"](mel_freqs)]) for key in FREQ_BANDS
-    }
-
-    mean = np.mean(scores[key] for key in scores)
-
-    bass_ratio = int(np.abs(scores["bass"] - mean))
-    mid_ratio = int(np.abs(scores["mid"] - mean))
-    bass_to_mid_ratio = int(np.abs(scores["bass"] - scores["mid"]))
+    mel_spec = librosa.power_to_db(mel_S)
     
-    return db_scaling(bass_ratio), db_scaling(mid_ratio), db_scaling(bass_to_mid_ratio)
+    n_bins = mel_spec.shape[1]
+    mel_freqs = librosa.mel_frequencies(n_mels=n_bins)
+    mel_concentrated = np.mean(mel_spec, axis=0)
 
+    scores = {}
+    for key in FREQ_BANDS:
+        scores[key] = np.mean(mel_concentrated[FREQ_BANDS[key]["mask"](mel_freqs)])
+
+    # and how much bass/mids are make up the energy
+    bass_to_mid_ratio = np.abs(scores["bass"] - scores["mid"])
+    
+    return np.rint(bass_to_mid_ratio)
 
 # implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
@@ -154,8 +153,8 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
 
     return c
 
-# should normalize before peak detection
-def get_frame_peak_density_spacing(mag_dB):
+
+def get_frame_peak_density_spacing(mag_dB: np.ndarray) ->Tuple[np.ndarray, np.ndarray]:
     """
     Determine the peak density in each frame of out input spectrogram
     and the spacing of the peaks in every frame
@@ -163,20 +162,34 @@ def get_frame_peak_density_spacing(mag_dB):
     Parameters:
     Magnitude to dB converted spectrogram of the input audio
     """
+    n_freqs, n_frames = mag_dB.shape
+    freqs = librosa.fft_frequencies(sr=RATE, n_fft=NFFT)
     
-    density = []
+    # in the process of changing this method
+    peak_tracking = np.zeros(n_frames, n_freqs)
+    density = np.zeros(shape=n_frames, dtype=float)
     spacing = []
-    peak_array = []
-    for frame in mag_dB.T:
-        peaks = librosa.util.peak_pick(frame, pre_max=3, post_max=3, pre_avg=3, post_avg=3, delta=0.5, wait=10)
-        peak_array.append(peaks)
 
-        if peaks > 1:
-            peak_spacing = np.diff(peaks)
-            density.append(len(frame) / len(peaks))
-            spacing.append(peak_spacing)
     
-    return np.array(density), np.array(spacing)
+    for frame_idx in range(n_frames):
+
+        peaks = librosa.util.peak_pick(
+            mag_dB[:,frame_idx], 
+            pre_max=3,
+            post_max=3,
+            pre_avg=3,
+            post_avg=3,
+            delta=0.35,
+            wait=10)
+        density[frame_idx] = len(peaks) / n_freqs
+        
+        if len(peaks) > 1:
+            peak_spacing = np.diff(peaks)
+            spacing.append(peak_spacing)
+        else:
+            spacing.append(np.array([]))
+
+    return density, spacing
 
 
 def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
@@ -197,13 +210,25 @@ def spectral_density(S_org: np.ndarray, S_proc: np.ndarray) -> Tuple[int, int]:
 
     spectral_density_org, _ = get_frame_peak_density_spacing(mag_dB=mag_dB_org)
     spectral_density_proc, _ = get_frame_peak_density_spacing(mag_dB=mag_dB_proc)
-
+    
+    spectral_density_org = np.where(spectral_density_org != 0, spectral_density_org, 1e-10)
+    spectral_density_proc = np.where(spectral_density_proc != 0, spectral_density_proc, 1e-10)
+    
+    # measurement of how much the density remains stable between processing
     density_ratio = spectral_density_proc / spectral_density_org
-    density_difference = spectral_density_proc - spectral_density_org
+    cond = (density_ratio != 1) & ~np.isnan(density_ratio)
+    density_deriv = np.extract(cond, density_ratio)
+    density_stability = (1 - len(density_deriv) / mag_dB_org.shape[1]) * 100
+    
+    # measure to which extend the peak density accumulated or disappeared
+    combined = spectral_density_proc - spectral_density_org
+    pos_derv = len(np.extract(combined > 0, combined))
+    neg_derv = len(np.extract(combined < 0, combined))
+    peak_density_difference = ((pos_derv - neg_derv) / len(spectral_density_org))*100
+    
+    return density_stability, peak_density_difference
 
-    return int(density_ratio*100), int(density_difference*100)
-
-def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
+def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
     """
     Detect clustering of peaks to detect irritating resonances. 
     We compare it to the clustering of the original input in order to avoid 
@@ -215,34 +240,54 @@ def spectral_clustering(S_org: np.ndarray, S_proc: Optional[np.ndarray]):
     S_org: STFT of the original audio
     S_proc: STFT of the processed audio
     """
-    mag_org = np.abs(S_org)
-    mag_dB_org = librosa.amplitude_to_db(mag_org)
 
-    mag_proc = np.abs(S_proc)
-    mag_dB_proc = librosa.amplitude_to_db(mag_proc)
+    mag_dB_org = librosa.power_to_db(mel_org)
+    mag_dB_proc = librosa.power_to_db(mel_proc)
 
     density_org, spacing_org = get_frame_peak_density_spacing(mag_dB_org)
     density_proc, spacing_proc = get_frame_peak_density_spacing(mag_dB_proc)
-
-    if (len(spacing_org) < 2 or len(spacing_proc) < 2):
-        return 0
     
-    # the regularity of the spacing might indicate ringing and naturalness of reverb (the more irregular the better --> irregular reflections are natural)
-    o_spacing_regularity = 1 - (np.std(spacing_org) / np.mean(spacing_org))
-    p_spacing_regularity = 1 - (np.std(spacing_proc) / np.mean(spacing_proc))
+    if (len(spacing_org) < 2 or len(spacing_proc) < 2):
+        print("Reverbrated audio is too short to properly evaluate spacing parameters")
+        return (0, 0, 0, 0)
 
     # peak clusters for mean density (shouldn't be too low nor too high and might tell us about resonances)
-    o_cluster_score = sum(spacing_org < np.mean(spacing_org) * 0.5) / np.mean(density_org)
-    o_resonance_score = sum(spacing_org < np.mean(spacing_org) * 0.35)
+    o_cluster_score, o_resonance_score = compute_clustering(spacing_org, density_org)
+    p_cluster_score, p_resonance_score = compute_clustering(spacing_proc, density_proc)
 
-    p_cluster_score = sum(spacing_org < np.mean(spacing_proc) * 0.5) / np.mean(density_proc)
-    p_resonance_score = sum(density_proc < np.mean(density_proc) * 0.35)
-
-    spacing_regularity_diff = o_spacing_regularity - p_spacing_regularity
     clustering_diff = o_cluster_score - p_cluster_score
     resonance_diff = o_resonance_score - p_resonance_score
 
-    return min(int(spacing_regularity_diff)*100), min(int(clustering_diff)*100), int(resonance_diff), int(p_resonance_score), int(p_cluster_score)
+    return int(clustering_diff)*100, int(resonance_diff)*100
+
+def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
+    """
+    Calculates the extend of peaks, that cluster closely together
+    and relates it to the overall peak density for comparability
+
+    Parameters:
+    -----------
+    spacing: np.ndarray
+        multi-dimensional array with the sample difference between peaks
+    density: np.ndarray
+        one-dimensional array containing the peak densities per frame
+
+    Returns:
+    --------
+    cluster_score : float 
+        Relation of number of close spacing to the density
+    resonance_score : float
+        Number of very close spectral peaks
+    """
+    if spacing.size == 0 or density.size == 0:
+        return 0.0, 0.0
+
+    mean = np.mean(spacing)
+    cluster_score = sum(spacing[spacing < mean * 0.5] ) / np.mean(density)
+    resonance_score = sum(spacing  < (mean * 0.35))
+
+    return cluster_score, resonance_score
+
 
 # have to handle normalization before peak detection
 # I could apply perceptual weighting

@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python Debugger: Current File with Arguments",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${file}",
+            "console": "integratedTerminal",
+            "args": [
+                "C:/Schreibtisch/Coding/Reverb-Optimization-With-ASP/data/cello_climb_quiet_highMids_postprocessed_organic.wav",
+                "C:/Schreibtisch/Coding/Reverb-Optimization-With-ASP/src/ASP/encoding.lp"
+            ]
+        }
+    ]
+}

@@ -1,5 +1,6 @@
 import sys
 import os
+import numpy as np
 from InputFeatures import InputFeatures
 from ArtifactFeatures import ArtifactFeatures
 from ArtifactFeatures import *
@@ -17,20 +18,17 @@ class ReverbOptimizer(Application):
     program_name: str = "Reverb Optimization System"
     version: str = "1.0"
 
-    def __init__(self, string, input, encode):
+    def __init__(self):
 #        self.model = []
-        self.string = string
         self.params = {}
-        self.input = input
-        self.encoding = encode
         self.input_features: InputFeatures = None
-        self.artifact_features = None
+        self.artifact_features: ArtifactFeatures = None
         
         # initiate the directory this application will save the processed audio to
         self.output_dir: str = os.path.join(
             os.path.dirname(
                 os.path.abspath(__file__)), 
-                '../../processed_audio')
+                '..\..\processed_data')
 
         os.makedirs(self.output_dir, exist_ok=True)
 
@@ -49,20 +47,41 @@ class ReverbOptimizer(Application):
             elif name == "selected_spread":
                 self.params["spread"] = value / 100
 
-    def register_options(self, options: ApplicationOptions) -> None:
-        """
-        Register additional command-line options so that we can
-        pass an audio input path
-        """
+# kann ich auch zusammenlegen aber später
+    def read_input(self, sample: str):
+        """Read input and analyze features"""
+        try: 
+            y, sr = ia.load_audio(sample)     
+            if not isinstance(y, np.ndarray):
+                raise ValueError("Audio data must be of type numpy.ndarray")
+            
+        except Exception as e:
+            print(f"Error {e} processing input audio")
+            sys.exit(1)
 
-        group = "Reverb Options"
-        options.add(
-            group,
-            option="input,i",
-            parser=(str),
-            description="audio file path",
-            argument="<file>"
-        )
+        self.input_features = InputFeatures(y=y, sr=sr)
+        self.input_features.create_instance()
+    
+    
+    def read_output(self, sample: str):
+        """Read processed audio and analyze features"""
+        try: 
+            output, sr = ia.load_audio(sample)
+
+            if not isinstance(output, np.ndarray):
+                raise ValueError("Audio data must be of type numpy.ndarray")
+        
+        except Exception as e:
+            print(f"Error {e} processing input audio")
+            sys.exit(1)
+
+        self.artifact_features = ArtifactFeatures(
+            y=output, 
+            sr=sr,
+            mel_l_org=self.input_features.mel_left, 
+            mel_r_org=self.input_features.mel_right
+            )
+
 
     def main(self, ctl, files: Sequence[str]) -> None:
         """
@@ -82,7 +101,7 @@ class ReverbOptimizer(Application):
 
         params = {}
         
-        self.input_features = InputFeatures.read_input(input_file)
+        self.read_input(sample=input_file)
 
         instance_file = self.input_features.instance_file_path
         
@@ -93,19 +112,19 @@ class ReverbOptimizer(Application):
         solve_result = ctl.solve(on_model=self._on_model)
         
         if not solve_result.satisfiable:
+            print("No model found")
             return
-
-        processed = reverb.reverb_application(
-            input=self.input_file, 
-            output=self.output_dir, 
-            parameters=params)
         
-        self.artifact_features = ArtifactFeatures.read_output(processed)
-
-        # not sure about being able to add instances like this to the running program
-        ctl.add(name="artifact_facts", parameters=[], program=self.artifact_features.create_instance())
-        ctl.ground([("artifact_facts", []), ("artifact", [])])
-        ctl.solve(on_model=self._on_model(params=self.params))
+        input_basename = os.path.basename(input_file)
+        output_filename = f"processed_{input_basename}"
+        output_path = os.path.join(self.output_dir, output_filename)
+        
+        processed = reverb.reverb_application(
+            input=input_file, 
+            output=str(output_path), 
+            parameters=self.params)
+        
+        self.read_output(sample=output_path)
 
         reverb.reverb_application(
             input=processed,
@@ -113,8 +132,5 @@ class ReverbOptimizer(Application):
             parameters=params
         )
 
-
-clingo_main(ReverbOptimizer(sys.argv[0], sys.argv[1], sys.argv[2]))
-
 if __name__ == "__main__":
-    clingo_main
+    clingo_main(ReverbOptimizer())

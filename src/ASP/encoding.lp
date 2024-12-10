@@ -35,32 +35,4 @@
 #show selected_size/1.
 #show selected_damp/1.
 #show selected_wet/1.
-#show selected_spread/1.^
-
-% just an idea for a program with stepwise adjustments but might change
-#program artifact.
-
-#const clippin_threshold = 65
-#const muddiness_threshold = 70
-#const ringing_threshold = 60
-#const density_threshold = 75
-
-size_adjustment(D) :- 
-   density_ratio_differential_left(D), 
-   D > density_threshold,
-   selected_size(C),
-   D = Current - 10.
-
-size_adjustment(D) :- 
-   density_ratio_differential_left(D), 
-   D > density_threshold,
-   selected_size(C),
-   D = Current - 10.
-
-selected_size(V) :- 
-    size_adjustment(A),
-    V = #min{100, #max{0, A}}.
-
-selected_size(V) :- 
-    not size_adjustment(_),
-    selected_size(V).
+#show selected_spread/1.

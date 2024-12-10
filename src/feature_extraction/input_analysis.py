@@ -25,12 +25,13 @@ def load_audio(file: str) -> Tuple[np.ndarray[np.float32],int]:
     """Load audio input as a stereo file"""
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return to_stereo(y), sr
-
-
+    
 def to_stereo(
         y: Optional[np.ndarray]
         ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
     """Create stereo signal by duplicating the mono signal if necessary"""
+    if y is None:
+        return ValueError("Input signal cannot be None")
 
     mono = y.ndim == 1 or y.shape[0] == 1
     if not mono:
@@ -39,9 +40,9 @@ def to_stereo(
 
 
 def compute_STFT(
-        y: Optional[np.ndarray], 
-        sr: float,
-        mode: str
+        y: np.ndarray, 
+        mode: str,
+        sr: float = RATE
         ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
     """
     Computation of the STFT for both stereo channels
@@ -58,8 +59,8 @@ def compute_STFT(
         return S_left, S_right
     
     if (mode == "mel"):
-        mel_left = librosa.feature.melspectrogram(y[0], n_fft=NFFT, hop_length=HOPS)
-        mel_right = librosa.feature.melspectrogram(y[1], n_fft=NFFT, hop_length=HOPS)
+        mel_left = librosa.feature.melspectrogram(y=y[0], n_fft=NFFT, hop_length=HOPS)
+        mel_right = librosa.feature.melspectrogram(y=y[1], n_fft=NFFT, hop_length=HOPS)
         return mel_left, mel_right
     
 

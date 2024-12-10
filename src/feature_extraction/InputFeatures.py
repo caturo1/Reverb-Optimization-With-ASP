@@ -30,8 +30,8 @@ class InputFeatures:
         self.instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
         
         # store mel_spectrogram for comparative analysis
-        self.mel_left = ia.compute_STFT(y[0], mode="mel")
-        self.mel_right = ia.compute_STFT(y[1], mode="mel")
+        self.mel_left, self.mel_right = ia.compute_STFT(y=y, mode="mel")
+        self.stft_left, self.stft_right = ia.compute_STFT(y=y, mode="regular")
 
         # store feats
         rms, self.rms_mean, self.rms_channel_balance = ia.rms_features(y)
@@ -43,32 +43,19 @@ class InputFeatures:
         self.spectral_spread = ia.spectral_spread(S_l=self.stft_left, S_r=self.stft_right, sr=sr, centroid_left=centroid_l, centroid_right=centroid_r)
 
 
-    def create_instance(curr) -> Optional[str]:
+    def create_instance(self) -> Optional[str]:
         """Creation of an instance string describing our input for ASP guessing"""
         
         instance = f"""
-rms({int(curr.rms_mean)}).
-rms_channel_balance({int(curr.rms_channel_balance)}).
-dr({int(curr.dynamic_range)}).
-density_population({int(curr.density)}).
-mid({int(curr.mid)}).
-side({int(curr.side)}).
-spectral_centroid({int(curr.spectral_centroid)}).
-spectral_flatness({int(curr.spectral_flatness)}).
-spectral_spread({int(curr.spectral_spread)})."""
+rms({int(self.rms_mean)}).
+rms_channel_balance({int(self.rms_channel_balance)}).
+dr({int(self.dynamic_range)}).
+density_population({int(self.density)}).
+mid({int(self.mid)}).
+side({int(self.side)}).
+spectral_centroid({int(self.spectral_centroid)}).
+spectral_flatness({int(self.spectral_flatness)}).
+spectral_spread({int(self.spectral_spread)})."""
+        print(instance)
+        AspHandler.write_instance(instance, self.instance_file_path)
         
-        AspHandler.write_instance(instance, curr.instance_file_path)
-
-    def read_input(self, sample: str):
-        """Read input and analyze features"""
-        try: 
-            y, sr = ia.load_audio(sample)
-            
-        except Exception as e:
-            print(f"Error {e} processing input audio")
-            sys.exit(1)
-
-        current = InputFeatures(y=y, sr=sr)
-        self.create_instance(current)
-
-        return current
