@@ -1,5 +1,5 @@
 from clingo import Control, PropagateControl, PropagateInit, PropagatorCheckMode
-from . import util
+from util import *
 from ArtifactFeatures import *
 import reverb
 

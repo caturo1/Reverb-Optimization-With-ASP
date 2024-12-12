@@ -2,9 +2,9 @@ import sys
 import os
 import numpy as np
 from textwrap import dedent
-from . import reverbPropagator as REVProp
-from . import ArtifactFeatures
-from . import InputFeatures
+from reverbPropagator import reverbPropagator as REVProp
+from ArtifactFeatures import ArtifactFeatures
+from InputFeatures import InputFeatures
 import input_analysis as ia
 from typing import Sequence
 from clingo import Flag, Propagator, Control
@@ -27,7 +27,6 @@ class ReverbOptimizer(Application):
         self.__audio_file                           = "Reverb-Optimization-With-ASP/data/"
         self.__encoding                             = "Reverb-Optimization-With-ASP/ASP/encoding.lp"
         self.__input_features: InputFeatures        = None
-        self.__propagator: Propagator               = REVProp()
         self.answer_sets                            = []
         
         # initiate the directory for the processed audio
@@ -145,7 +144,7 @@ class ReverbOptimizer(Application):
         ctl.ground([("base",[])])
 
         ## 4) Register Propagator and solve according to its logic
-        ctl.register_propagator(self.__propagator(display=self.__display,
+        ctl.register_propagator(REVProp(display=self.__display,
                                                   output_file_path=output_path,
                                                   input_path=self.__audio_file,
                                                   input_features=self.__input_features))
