@@ -1,5 +1,3 @@
-
-import os
 from pedalboard import Pedalboard, Reverb
 from pedalboard.io import AudioFile
 

@@ -23,6 +23,11 @@ FREQ_BANDS = {
     }
 }
 
+"""
+There are still inconsistencies as to handling differential analysis in
+the function or in the ArtifactFeatures class. Soon to be resolved.
+"""
+
 def db_scaling(value) -> int:
     """Scaling of dB related values according to bit-depth of the signal
 
@@ -52,9 +57,13 @@ def clipping_analyzer(y: np.ndarray):
     """
     Detection of clipping in one channel of the signal based on 
     "Detection of Clipped Fragments in Speech Signals" by Sergei Aleinik, Yuri Matveev
-
+    
+    Remark: It might be possible to detect clipping via fetching the maximal amplitude
+    for ASP solving, but I thought a single clip isn't necessarily bad or a reason to solve again,
+    but rather a certain clipping severity is.
+    
     Parameter:
-    - y: One channel of stereo audio
+    - y: One channel of stereo audio on [-1,1]
 
     Returns:
     Parameter indicating severity of clipping
@@ -100,7 +109,7 @@ def clipping_analyzer(y: np.ndarray):
     
     r_cl = 2*d_max / denom if denom > 0 else 0
 
-    return np.rint(min(1.0, r_cl)*100)
+    return r_cl
 
 
 # Check here again
@@ -112,6 +121,14 @@ def muddiness_analyzation(mel_S: np.ndarray):
 
     Not sure if melspectrum or perceptually weighted STFT is better. 
     The latter has a better frequency resolution.
+
+    Parameters:
+    ----------
+        mel_S: Mel Spectrogram of one channel
+    
+    Return:
+    -------
+        bass_to_mid_ratio: For 16-bit audio roughly [0,96]
     """
 
     mel_spec = librosa.power_to_db(mel_S)
@@ -125,9 +142,9 @@ def muddiness_analyzation(mel_S: np.ndarray):
         scores[key] = np.mean(mel_concentrated[FREQ_BANDS[key]["mask"](mel_freqs)])
 
     # and how much bass/mids are make up the energy
-    bass_to_mid_ratio = np.abs(scores["bass"] - scores["mid"])
+    bass_to_mid_ratio = scores["bass"] - scores["mid"]
     
-    return np.rint(bass_to_mid_ratio)
+    return bass_to_mid_ratio
 
 # implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
@@ -138,10 +155,7 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
     y: 2D array with y[0] as left and y[1] as right channel
     
     Return:
-    correlation: Range between [0,200] for ASP guessing where
-    - prev 0 -> 100
-    - prev 1 -> 200
-    - prev -1 -> 0
+    correlation: In range of [-1,1]
     """
 
     if (y is None or y.ndim != 2 or y.shape[1] == 0):
@@ -149,7 +163,8 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
 
     numerator = np.mean(y[0] * y[1])
     denom = np.sqrt((np.mean(y[0] ** 2) + np.mean(y[1] ** 2)) + 1e-10)
-    c = ((numerator / denom) + 1) * 100
+    ## changed resulting values
+    c = (numerator / denom)
 
     return c
 
@@ -160,7 +175,14 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
     and the spacing of the peaks in every frame
 
     Parameters:
-    Magnitude to dB converted spectrogram of the input audio
+    -----------
+        mel_dB: Magnitude to dB converted spectrogram of the input audio
+
+    Return:
+    -------
+        density: density measurement in relation to whole audio on [0,1]
+        peak_tracking: Matrix of size n_freqs x n_frames with count in respective position on [0,n_frames]
+        spacing: Array containing the frequency-dependent space between peaks in Hz on [0,19_980]
     """
     n_freqs, n_frames = mel_dB.shape
     freqs = librosa.mel_frequencies(n_mels=n_freqs, fmin=20, fmax=20_000)
@@ -179,9 +201,10 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             post_avg=3,
             delta=0.35,
             wait=10)
+        
         # this  gives me just how many peaks I gave per frame in relation to the whole audio
         # I could expand this to the different frequency bands
-        density[frame_idx] = len(peaks) / n_freqs
+        density[frame_idx] = len(peaks) / n_frames
         
         peak_tracking[[peaks], frame_idx] = 1
 
@@ -201,10 +224,18 @@ def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, in
     The difference between the input and processed audio gives us a measurement about the extent of reverb we can apply
     
     Parameters:
-    S_org: STFT of the original audio
-    S_proc: STFT of the processed audio
+    -----------
+        S_org: STFT of the original audio
+        S_proc: STFT of the processed audio
+
+    Returns:
+    --------
+        density_stability: Desc in code; on scale of [0,1]
+        peak_density_difference: Accumulation of peaks on [-n_frames,n_frames]
+
     """
-    
+    n_frames = mel_dB_org.shape[1]
+
     mel_dB_org = librosa.amplitude_to_db(mel_org)
     mel_dB_proc = librosa.power_to_db(mel_proc)
 
@@ -215,16 +246,26 @@ def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, in
     spectral_density_proc = np.where(spectral_density_proc != 0, spectral_density_proc, 1e-10)
     
     # measurement of how much the density remains stable between processing
+    ## density_ratio contains a deensity value per frame
+    ## density_ratio = 1 if both are the same
+    ## density_ratio > 1 if we introduced more peaks
+    ## density_ratio < 1 if we resolved peaks
+    ## density_deriv contains only relevant frames
+    ## stability measures the extend for relevant (aka introduced) peaks
     density_ratio = spectral_density_proc / spectral_density_org
     cond = (density_ratio != 1) & ~np.isnan(density_ratio)
     density_deriv = np.extract(cond, density_ratio)
-    density_stability = (1 - len(density_deriv) / mel_dB_org.shape[1]) * 100
+    density_stability = (1 - len(density_deriv) / n_frames)
     
     # measure to which extend the peak density accumulated or disappeared
-    combined = spectral_density_proc - spectral_density_org
+    ## combined contains the peak-count difference
+    ## peak_density_difference is positive if we introduced peaks
+    ## and relates it to the size of the audio
+    ## becuase 20 new peaks in a 1 s audio are a lot in a 1 minute audio not 
+    combined = spectral_density_proc[spectral_density_proc] - spectral_density_org[spectral_density_org]
     pos_derv = len(np.extract(combined > 0, combined))
     neg_derv = len(np.extract(combined < 0, combined))
-    peak_density_difference = ((pos_derv - neg_derv) / len(spectral_density_org))*100
+    peak_density_difference = pos_derv - neg_derv
     
     return density_stability, peak_density_difference
 
@@ -238,8 +279,14 @@ def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
     We also calculate the regularity of spacing between peaks to detect unnatural reverbration patterns (not anymore, that was stupid)
 
     Parameters:
-    S_org: STFT of the original audio
-    S_proc: STFT of the processed audio
+    -----------
+        S_org: STFT of the original audio
+        S_proc: STFT of the processed audio
+
+    Returns:
+    --------
+        final_score: Weighted score compined of closely clustered 
+            and dangerously clustered peaks [-511,511]
     """
 
     mel_dB_org = librosa.power_to_db(mel_org)
@@ -259,7 +306,8 @@ def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
     clustering_diff = p_cluster_score - o_cluster_score
     resonance_diff = p_resonance_score - o_resonance_score
 
-    return clustering_diff, resonance_diff
+    final_score = (clustering_diff * 0.3 + resonance_diff * 0.7)
+    return final_score
 
 def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
     """
@@ -303,7 +351,13 @@ def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     for differential analysis.
 
     Parameters:
-    S: STFT of processed audio
+    -----------
+        S: STFT of processed audio
+
+    Return:
+    -------
+        differential_score: Severeness of ringing on [-2288,2288]
+            in case every considered freq in every considered frame clips
     """
 
 
@@ -339,8 +393,9 @@ def compute_ringing_score(peak_tracking: np.ndarray) -> int:
         freq_idx = 0
         array_f_idx = 0
         while (freq_idx := freq_idx + freq_eps) <= n_freqs - freq_eps:
-            ringing[array_f_idx, array_t_idx] = (np.sum(peak_tracking[freq_idx - freq_eps : freq_idx + freq_eps,
-                                              frame_idx - time_eps : frame_idx + time_eps]))
+            ringing[array_f_idx, array_t_idx] = (np.sum(
+                                            peak_tracking[freq_idx - freq_eps : freq_idx + freq_eps,
+                                            frame_idx - time_eps : frame_idx + time_eps]))
             array_f_idx += 1
         array_t_idx += 1
 

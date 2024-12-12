@@ -1,89 +1,114 @@
 import sys
 import os
 import numpy as np
-from InputFeatures import InputFeatures
-from ArtifactFeatures import ArtifactFeatures
-from ArtifactFeatures import *
-from InputFeatures import *
-from typing import Sequence, Optional
-from clingo import ApplicationOptions, Model, Control
+from textwrap import dedent
+from . import reverbPropagator as REVProp
+from . import ArtifactFeatures
+from . import InputFeatures
+import input_analysis as ia
+from typing import Sequence
+from clingo import Flag, Propagator, Control
 from clingo.application import Application, clingo_main
-import reverb
 
 class ReverbOptimizer(Application):
     """
-    Reverb Optimization Application
+    Reverb Optimization Application.
+    The application takes the name of the audio in question as input.
     """
     
     program_name: str = "Reverb Optimization System"
     version: str = "1.0"
 
     def __init__(self):
-#        self.model = []
-        self.params = {}
-        self.input_features: InputFeatures = None
-        self.artifact_features: ArtifactFeatures = None
+        """
+        Setup the data structures for the application.
+        """
+        self.__display                              = Flag(False)
+        self.__audio_file                           = "Reverb-Optimization-With-ASP/data/"
+        self.__encoding                             = "Reverb-Optimization-With-ASP/ASP/encoding.lp"
+        self.__input_features: InputFeatures        = None
+        self.__propagator: Propagator               = REVProp()
+        self.answer_sets                            = []
         
-        # initiate the directory this application will save the processed audio to
+        # initiate the directory for the processed audio
         self.output_dir: str = os.path.join(
             os.path.dirname(
                 os.path.abspath(__file__)), 
                 '..\..\processed_data')
-
         os.makedirs(self.output_dir, exist_ok=True)
 
-    def _on_model(self, model: Model) -> None:
-        """Extract model parameters."""
-        for symbol in model.symbols(shown=True):
-            name = symbol.name
-            value = symbol.arguments[0].number
+    def __parse_audio_file(self, value):
+        """
+        Parse argument string
+        """
+        self.__audio_file = value
+        return True if isinstance(value, str) else False
 
-            if name == "selected_size":
-                self.params["size"] = value / 100
-            elif name == "selected_damp":
-                self.params["damping"] = value / 100
-            elif name == "selected_wet":
-                self.params["wet"] = value / 100
-            elif name == "selected_spread":
-                self.params["spread"] = value / 100
+    def register_options(self, options):
+        """
+        Extension point to add options to clingo-sp like choosing the
+        transformation to apply.
+
+        """
+        group = "FX Processing Options"
+
+        options.add(
+            group, 
+            "audio-file", 
+            dedent("""Audio file to process. Default=demo.wav"""),
+            self.__parse_audio_file)
+
+        options.add_flag(
+            group,
+            "display",
+            dedent("""Display more information"""),
+            self.__display)
 
 # kann ich auch zusammenlegen aber später
-    def read_input(self, sample: str):
-        """Read input and analyze features"""
+    def read_input(self, sample: str) -> None:
+        """
+        Read input and internally analyze features and create instance file
+        
+        Parameters:
+        ----------
+            sample: Path to the input audio
+        """
         try: 
             y, sr = ia.load_audio(sample)     
-            if not isinstance(y, np.ndarray):
-                raise ValueError("Audio data must be of type numpy.ndarray")
             
         except Exception as e:
             print(f"Error {e} processing input audio")
             sys.exit(1)
 
-        self.input_features = InputFeatures(y=y, sr=sr)
-        self.input_features.create_instance()
+        self.__input_features = InputFeatures(y=y, sr=sr)
+        self.__input_features.create_instance()
     
     
     def read_output(self, sample: str):
-        """Read processed audio and analyze features"""
+        """
+        Read processed audio and internally analyze features.
+        The differential analysis of artifact features uses input features as well.
+
+        Parameters:
+        -----------
+            Sample: Output file path
+        """
         try: 
             output, sr = ia.load_audio(sample)
-
-            if not isinstance(output, np.ndarray):
-                raise ValueError("Audio data must be of type numpy.ndarray")
         
         except Exception as e:
-            print(f"Error {e} processing input audio")
+            print(f"Error {e} processing reverbrated audio")
             sys.exit(1)
 
-        self.artifact_features = ArtifactFeatures(
-            y=output, 
+        self.__artifact_features = ArtifactFeatures(
+            y=output,
             sr=sr,
-            mel_l_org=self.input_features.mel_left, 
-            mel_r_org=self.input_features.mel_right
+            mel_l_org=self.__input_features.mel_left, 
+            mel_r_org=self.__input_features.mel_right
             )
 
 
-    def main(self, ctl, files: Sequence[str]) -> None:
+    def main(self, ctl: Control, files: Sequence[str]) -> None:
         """
         Main function implementing a multi-shot-solving attempt.
 
@@ -96,41 +121,42 @@ class ReverbOptimizer(Application):
         if not files:
             files = ["-"]
 
-        input_file = files[0]
-        asp_encoding = files[1]
-
-        params = {}
+        self.__audio_file = os.path.join(self.__audio_file, files[0])
+        print(self.__audio_file)
         
-        self.read_input(sample=input_file)
-
-        instance_file = self.input_features.instance_file_path
-        
-        ctl.load(asp_encoding)
-        ctl.load(instance_file)
-
-        ctl.ground([("base",[])])
-        solve_result = ctl.solve(on_model=self._on_model)
-        
-        if not solve_result.satisfiable:
-            print("No model found")
-            return
-        
-        input_basename = os.path.basename(input_file)
+        ## Determin file path for reverbrated audio
+        input_basename = os.path.basename(self.__audio_file)
         output_filename = f"processed_{input_basename}"
         output_path = os.path.join(self.output_dir, output_filename)
         
-        processed = reverb.reverb_application(
-            input=input_file, 
-            output=str(output_path), 
-            parameters=self.params)
+        ## 1) Read input, analyze features, create instance
+        print("Analyzing input audio")
+        self.read_input(self.__audio_file)
+        
+        ## 2) Load clingo encoding and input file
+        if self.__display:
+            print("Loading encodings")
+        ctl.load(self.__encoding)
+        ctl.load(self.__input_features.instance_file_path)
+
+        ## 3) Ground the encoding
+        if self.__display:
+            print("Grounding...")
+        ctl.ground([("base",[])])
+
+        ## 4) Register Propagator and solve according to its logic
+        ctl.register_propagator(self.__propagator(display=self.__display,
+                                                  output_file_path=output_path,
+                                                  input_path=self.__audio_file,
+                                                  input_features=self.__input_features))
+        with ctl.solve(yield_=True) as hnd:
+            for model in hnd:
+                atoms_list = model.symbols(shown=True)
+                self.answer_sets.append(atoms_list)
+                if self.__display:
+                    print()
         
         self.read_output(sample=output_path)
 
-        reverb.reverb_application(
-            input=processed,
-            output=self.output_dir,
-            parameters=params
-        )
-
 if __name__ == "__main__":
-    clingo_main(ReverbOptimizer())
+    sys.exit(int(clingo_main(ReverbOptimizer(), sys.argv[1:])))
