@@ -23,9 +23,9 @@ class ReverbOptimizer(Application):
         """
         Setup the data structures for the application.
         """
-        self.__display                              = Flag(False)
-        self.__audio_file                           = "Reverb-Optimization-With-ASP/data/"
-        self.__encoding                             = "Reverb-Optimization-With-ASP/ASP/encoding.lp"
+        self.__display : Flag                       = Flag(False)
+        self.__audio_file                           = "../../data/"
+        self.__encoding                             = "../ASP/encoding.lp"
         self.__input_features: InputFeatures        = None
         self.answer_sets                            = []
         
@@ -40,7 +40,7 @@ class ReverbOptimizer(Application):
         """
         Parse argument string
         """
-        self.__audio_file = value
+        self.__audio_file = os.path.join(self.__audio_file, value)
         return True if isinstance(value, str) else False
 
     def register_options(self, options):
@@ -81,31 +81,6 @@ class ReverbOptimizer(Application):
 
         self.__input_features = InputFeatures(y=y, sr=sr)
         self.__input_features.create_instance()
-    
-    
-    def read_output(self, sample: str):
-        """
-        Read processed audio and internally analyze features.
-        The differential analysis of artifact features uses input features as well.
-
-        Parameters:
-        -----------
-            Sample: Output file path
-        """
-        try: 
-            output, sr = ia.load_audio(sample)
-        
-        except Exception as e:
-            print(f"Error {e} processing reverbrated audio")
-            sys.exit(1)
-
-        self.__artifact_features = ArtifactFeatures(
-            y=output,
-            sr=sr,
-            mel_l_org=self.__input_features.mel_left, 
-            mel_r_org=self.__input_features.mel_right
-            )
-
 
     def main(self, ctl: Control, files: Sequence[str]) -> None:
         """
@@ -116,20 +91,15 @@ class ReverbOptimizer(Application):
         ctl: control handle
         files: list of files, namely the encoding and instances
         """
-
-        if not files:
-            files = ["-"]
-
-        self.__audio_file = os.path.join(self.__audio_file, files[0])
-        print(self.__audio_file)
         
-        ## Determin file path for reverbrated audio
+        ## Determine file path for reverbrated audio
         input_basename = os.path.basename(self.__audio_file)
         output_filename = f"processed_{input_basename}"
         output_path = os.path.join(self.output_dir, output_filename)
         
         ## 1) Read input, analyze features, create instance
-        print("Analyzing input audio")
+        if self.__display:
+            print(f"Analyzing input audio {self.__audio_file}")
         self.read_input(self.__audio_file)
         
         ## 2) Load clingo encoding and input file
@@ -147,7 +117,8 @@ class ReverbOptimizer(Application):
         ctl.register_propagator(REVProp(display=self.__display,
                                                   output_file_path=output_path,
                                                   input_path=self.__audio_file,
-                                                  input_features=self.__input_features))
+                                                  input_features=self.__input_features,
+                                                  n_frames = self.__input_features.mel_left.shape[1]))
         with ctl.solve(yield_=True) as hnd:
             for model in hnd:
                 atoms_list = model.symbols(shown=True)
@@ -155,7 +126,5 @@ class ReverbOptimizer(Application):
                 if self.__display:
                     print()
         
-        self.read_output(sample=output_path)
-
 if __name__ == "__main__":
     sys.exit(int(clingo_main(ReverbOptimizer(), sys.argv[1:])))

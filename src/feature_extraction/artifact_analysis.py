@@ -197,8 +197,8 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             mel_dB[:,frame_idx], 
             pre_max=3,
             post_max=3,
-            pre_avg=3,
-            post_avg=3,
+            pre_avg=10,
+            post_avg=10,
             delta=0.35,
             wait=10)
         
@@ -214,7 +214,6 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             spacing[index : index + upper] = diffs
             index += upper
     spacing = spacing[~np.isnan(spacing)]
-
     return density, peak_tracking, spacing
 
 
@@ -230,11 +229,11 @@ def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, in
 
     Returns:
     --------
-        density_stability: Desc in code; on scale of [0,1]
+        density_stability: Desc in code; on scale of [0,1] with 0 as unstable
         peak_density_difference: Accumulation of peaks on [-n_frames,n_frames]
 
     """
-    n_frames = mel_dB_org.shape[1]
+    n_frames = mel_proc.shape[1]
 
     mel_dB_org = librosa.amplitude_to_db(mel_org)
     mel_dB_proc = librosa.power_to_db(mel_proc)
@@ -249,7 +248,8 @@ def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, in
     ## density_ratio contains a deensity value per frame
     ## density_ratio = 1 if both are the same
     ## density_ratio > 1 if we introduced more peaks
-    ## density_ratio < 1 if we resolved peaks
+    ## density_ratio < 1 if we resolved peaks 
+    #ä (maybe we should include just positive values in the condition since removing peaks is not an artifact)
     ## density_deriv contains only relevant frames
     ## stability measures the extend for relevant (aka introduced) peaks
     density_ratio = spectral_density_proc / spectral_density_org
@@ -262,7 +262,7 @@ def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, in
     ## peak_density_difference is positive if we introduced peaks
     ## and relates it to the size of the audio
     ## becuase 20 new peaks in a 1 s audio are a lot in a 1 minute audio not 
-    combined = spectral_density_proc[spectral_density_proc] - spectral_density_org[spectral_density_org]
+    combined = spectral_density_proc - spectral_density_org
     pos_derv = len(np.extract(combined > 0, combined))
     neg_derv = len(np.extract(combined < 0, combined))
     peak_density_difference = pos_derv - neg_derv
@@ -368,7 +368,6 @@ def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     ringing_proc = compute_ringing_score(peak_tracking_proc)
 
     differential_score = ringing_proc - ringing_org
-    print(f"The differential score: {differential_score}")
 
     return differential_score
 

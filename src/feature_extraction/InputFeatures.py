@@ -56,6 +56,5 @@ side({int(self.side)}).
 spectral_centroid({int(self.spectral_centroid)}).
 spectral_flatness({int(self.spectral_flatness)}).
 spectral_spread({int(self.spectral_spread)})."""
-        print(instance)
         AspHandler.write_instance(instance, self.instance_file_path)
         

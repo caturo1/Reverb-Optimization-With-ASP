@@ -13,7 +13,6 @@ class ArtifactFeatures:
 
     def __init__(self, 
                  y: np.ndarray, 
-                 sr: Optional[float], 
                  mel_l_org: np.ndarray,
                  mel_r_org: np.ndarray): 
         

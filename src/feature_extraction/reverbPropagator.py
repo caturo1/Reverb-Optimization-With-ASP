@@ -1,6 +1,8 @@
 from clingo import Control, PropagateControl, PropagateInit, PropagatorCheckMode
-from util import *
-from ArtifactFeatures import *
+import sys
+from util import parameter_conversion
+from ArtifactFeatures import ArtifactFeatures
+import input_analysis as ia 
 import reverb
 
 """
@@ -17,7 +19,7 @@ How this propagator works
 """
     
 class reverbPropagator:
-    def __init__(self, display, output_file_path, input_path, input_features):
+    def __init__(self, display, output_file_path, input_path, input_features, n_frames):
         """
         Called once before solving to set up data structures used in theory propagation.
 
@@ -29,22 +31,50 @@ class reverbPropagator:
         """
 
         self.__output_path          = output_file_path
-        self__no_good_set           = False
+        self.__reassignments        = 0
         self.__input_feats          = input_features
+        self.__artifact_features: ArtifactFeatures  = None
         self.__artifact_thresholds  = {
-            "clipping" : 0.3,
-            "bass-to-mid" : 12,
-            "cross-correlation" : -0.3,
-            "density_stability" : 0.25,
-            "density_difference" : 0.25 * self.__artifact_features.mel_l.shape[1],
-            "cluster_score" : 250,
-            "ringing" : 1000
-        } 
+            "clipping" : {
+                "thresh" : 0.4,
+                "count" : 4,
+                "adjustment" : 1.1
+            },
+            "bass-to-mid" : {
+                "thresh" : 12,
+                "count" : 4,
+                "adjustment" : 1.1
+            },
+            "cross-correlation" : {
+                "thresh" : -0.3,
+                "count" : 3,
+                "adjustment" : 1.1
+            },
+            "density_stability" : {
+                "thresh" : 0.25,
+                "count" : 5,
+                "adjustment" : 0.8
+            },
+            "density_difference" : {
+                "thresh" : 1   * n_frames,
+                "count" : 5,
+                "adjustment" : 1.25
+            },
+            "cluster_score" : {
+                "thresh" : 50,
+                "count" : 7,
+                "adjustment" : 1.25
+            },
+            "ringing" : {
+                "thresh" : 100,
+                "count" : 4,
+                "adjustment" : 1.1
+            }
+        }
         self.__input_path           = input_path
         self.__states               = {} ## Use a list to preserve states
         self.__display              = display
         self.__symbols              = {}
-        self.__artifact_features: ArtifactFeatures  = None
 
         
     def init(self, init: PropagateInit):
@@ -108,6 +138,31 @@ class reverbPropagator:
         for lit in changes:
             state[lit] = symbols[lit]
 
+    def expansion(self, conflict: str) -> None:
+        """
+        Apply nogood and check, if we adjust thresholds.
+        This is the core idea of having a dynamic artifact range, because subjectively speaking,
+        some artifacts might add a some character we might like but we optimally want to avoid them.
+
+        Remark: 
+        - Idea 1) Dynamically adjust thresholds if we can't find a model that satisfies our artifact threholds. Speaking for this are the very individual feature scales and data types
+        - Idea 2) Implement the thresholds in ASP encoding but search space then for first input analysis way larger (not yet implemented) and then use the specified artifact range as optimization statement
+
+        Parameters:
+        -----------
+            conflict: The artifact we discovered, that violated our predefined thresholds
+        """
+
+        if self.__display:
+                print(f"Oops, we have a {conflict} artifact! Add nogood")
+        
+        # if we added nogoods due to this specific artifact, relax the conditions a bit
+        # but just a specified number of times
+        # if we can still find no fitting model, than we are UNSAT
+        if self.__reassignments > 30 and self.__artifact_thresholds[conflict]["count"] > 0:
+            self.__artifact_thresholds[conflict]["thresh"] *= self.__artifact_thresholds[conflict]["adjustment"]
+            self.__artifact_thresholds[conflict]["count"] -= 1
+
     def undo(self, thread_id, assignment, changes):
         """
         Counterpart of propagate and called whenever the solver retracts assignments
@@ -142,50 +197,91 @@ class reverbPropagator:
         display     = self.__display
         parameters = {}
         nogood   = []
-        
+
         # now iterate over the state dictionary
         for lit, value in state.items():
             nogood.append(lit)
 
             ## 3) In the check function, apply the respective gains
-            parameter_value = util.parameter_conversion(value)
+            parameter_value = parameter_conversion(value)
             parameters[f"{lit}"] = parameter_value
 
-        if display:
-            print(f"Assigned new parameters to {parameters}\n"
-                f"Will check reverbrated audio against artifact thresholds {self.__artifact_thresholds}")
-            
+#        if display:
+#            print(f"Assigned new parameters to {parameters}\n"
+#                f"Will check reverbrated audio against artifact thresholds {self.__artifact_thresholds}")
+
+        ## Reverb Application    
         processed = reverb.reverb_application(
             input=self.__input_path, 
             output=str(self.__output_path), 
             parameters=parameters)
 
+        ## Reading reverbated audio to analyse potential artifacts
+        try: 
+            output, _ = ia.load_audio(processed)
+        
+        except Exception as e:
+            print(f"Error {e} processing reverbrated audio")
+            sys.exit(1)
+        
         self.__artifact_features = ArtifactFeatures(
-            y=processed,
+            y=output,
             mel_l_org=self.__input_feats.mel_left,
             mel_r_org=self.__input_feats.mel_right)
         
-        if (self.__artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"] or 
-            self.__artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"] or 
-            self.__artifact_features.cc < self.__artifact_thresholds["clipping"] or
-            self.__artifact_features.den_diff_differential_l < self.__artifact_thresholds["density_difference"] or
-            self.__artifact_features.den_diff_differential_r < self.__artifact_thresholds["density_difference"] or
-            self.__artifact_features.den_stability_differential_l < self.__artifact_thresholds["density_stability"] or
-            self.__artifact_features.den_stability_differential_r < self.__artifact_thresholds["density_stability"] or
-            self.__artifact_features.clustering_differential_l < self.__artifact_thresholds["cluster_score"] or
-            self.__artifact_features.clustering_differential_r < self.__artifact_thresholds["cluster_score"] or
-            self.__artifact_features.ringing_l < self.__artifact_thresholds["ringing"] or
-            self.__artifact_features.ringing_r < self.__artifact_thresholds["ringing"]):
-            if display and len(nogood)/4 < 30:
-                print("conflict! add nogood")
-            
-            ## Idea 1) Dynamically adjust thresholds if we can't find a model that satisfies our artifact threhs
-            ## Idea 2) Implement the thresholds in ASP encoding but search space then for first input analysis way larger
-            if len(nogood) > 30:
-                ## Possibly adjust parameters individually
-                for key in self.__artifact_thresholds:
-                    self.__artifact_thresholds[key] *= 0.7
+        if self.__display:
+            print(ArtifactFeatures)
+
+        ## Run Checks on Artifact features
+        ## This can even be expanded to just adding nogoods that are relevant for the artifact
+        if (self.__artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or 
+            self.__artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"]):
+            self.expansion("bass-to-mid")
+            self.__reassignments += 1
             if not control.add_nogood(nogood) or not control.propagate():
-                return
+                return    
+            
+        elif(self.__artifact_features.clipping_r > self.__artifact_thresholds["clipping"]["thresh"] or
+             self.__artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"]):
+            self.expansion("clipping")
+            self.__reassignments += 1
+            if not control.add_nogood(nogood) or not control.propagate():
+                return    
+
+        elif(self.__artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"]):
+            self.expansion("cross-correlation")
+            print(self.__artifact_features.cc)
+            self.__reassignments += 1
+            if not control.add_nogood(nogood) or not control.propagate():
+                return    
+        
+        elif(self.__artifact_features.clustering_differential_l > self.__artifact_thresholds["cluster_score"]["thresh"] or
+            self.__artifact_features.clustering_differential_r > self.__artifact_thresholds["cluster_score"]["thresh"]):
+            self.expansion("cluster_score")
+            self.__reassignments += 1
+            print(self.__artifact_features.clustering_differential_l)
+            if not control.add_nogood(nogood) or not control.propagate():
+                return    
+
+        elif(self.__artifact_features.ringing_l > self.__artifact_thresholds["ringing"]["thresh"] or
+            self.__artifact_features.ringing_r > self.__artifact_thresholds["ringing"]["thresh"]):
+            self.expansion("ringing")
+            self.__reassignments += 1
+            if not control.add_nogood(nogood) or not control.propagate():
+                return    
+
         else:
             pass
+"""
+        elif(self.__artifact_features.den_diff_differential_l < self.__artifact_thresholds["density_difference"]["thresh"] or
+            self.__artifact_features.den_diff_differential_r < self.__artifact_thresholds["density_difference"]["thresh"] or
+            self.__artifact_features.den_stability_differential_l < self.__artifact_thresholds["density_stability"]["thresh"] or
+            self.__artifact_features.den_stability_differential_r < self.__artifact_thresholds["density_stability"]["thresh"]):
+            self.expansion("density_difference")
+            thresh = self.__artifact_thresholds["density_difference"]["thresh"]
+            print(f"Is density_difference {self.__artifact_features.den_diff_differential_l} or {self.__artifact_features.den_diff_differential_l} < {thresh}")
+            self.expansion("density_stability")
+            self.__reassignments += 1
+            if not control.add_nogood(nogood) or not control.propagate():
+                return    
+"""

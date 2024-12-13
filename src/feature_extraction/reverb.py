@@ -16,3 +16,5 @@ def reverb_application(input: str, output: str, parameters: dict) -> AudioFile:
                 audio = f.read(f.samplerate)
                 effected = board(audio, f.samplerate, reset=False)
                 o.write(effected)
+    
+    return output
