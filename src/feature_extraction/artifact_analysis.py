@@ -214,6 +214,7 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             spacing[index : index + upper] = diffs
             index += upper
     spacing = spacing[~np.isnan(spacing)]
+    
     return density, peak_tracking, spacing
 
 

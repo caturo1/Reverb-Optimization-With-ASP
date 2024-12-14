@@ -46,7 +46,7 @@ class reverbPropagator:
                 "adjustment" : 1.1
             },
             "cross-correlation" : {
-                "thresh" : -0.3,
+                "thresh" : (-0.3, 0.3),
                 "count" : 3,
                 "adjustment" : 1.1
             },
@@ -56,7 +56,7 @@ class reverbPropagator:
                 "adjustment" : 0.8
             },
             "density_difference" : {
-                "thresh" : 1   * n_frames,
+                "thresh" : 0.3 * n_frames,
                 "count" : 5,
                 "adjustment" : 1.25
             },
@@ -66,15 +66,15 @@ class reverbPropagator:
                 "adjustment" : 1.25
             },
             "ringing" : {
-                "thresh" : 100,
+                "thresh" : 0.7,
                 "count" : 4,
                 "adjustment" : 1.1
             }
         }
         self.__input_path           = input_path
         self.__states               = {} ## Use a list to preserve states
-        self.__display              = display
         self.__symbols              = {}
+        self.__display              = display
 
         
     def init(self, init: PropagateInit):
@@ -181,8 +181,8 @@ class reverbPropagator:
         
         for lit in changes:
             if lit in state:
-                del state[lit]
-
+                del state[lit]        
+        
     def check(self, control: Control):
         """
         Similar to propagate, yet invoked w/ changes and only called on total assignments.
@@ -198,25 +198,23 @@ class reverbPropagator:
         parameters = {}
         nogood   = []
 
-        # now iterate over the state dictionary
-        for lit, value in state.items():
-            nogood.append(lit)
+            # now iterate over the state dictionary
+        for lit, value in sorted(state.items()):
 
             ## 3) In the check function, apply the respective gains
             parameter_value = parameter_conversion(value)
             parameters[f"{lit}"] = parameter_value
 
-#        if display:
-#            print(f"Assigned new parameters to {parameters}\n"
-#                f"Will check reverbrated audio against artifact thresholds {self.__artifact_thresholds}")
+        if display:
+            print(f"Assigned new parameters to {parameters}")
 
-        ## Reverb Application    
+        ## 1) Apply reverb with the current parameters
         processed = reverb.reverb_application(
             input=self.__input_path, 
             output=str(self.__output_path), 
             parameters=parameters)
 
-        ## Reading reverbated audio to analyse potential artifacts
+        ## 2) Load reverbated audio and run artifacts analyzer
         try: 
             output, _ = ia.load_audio(processed)
         
@@ -230,14 +228,21 @@ class reverbPropagator:
             mel_r_org=self.__input_feats.mel_right)
         
         if self.__display:
-            print(ArtifactFeatures)
+            self.__artifact_features.to_string()
 
-        ## Run Checks on Artifact features
+
+        ## 3) Run Checks on Artifact features
         ## This can even be expanded to just adding nogoods that are relevant for the artifact
         if (self.__artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or 
             self.__artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"]):
+            ## maybe damping or size or wet is too high
             self.expansion("bass-to-mid")
             self.__reassignments += 1
+            relevant_nogoods = ["selected_damp", "selected_size"]
+            
+            for item in relevant_nogoods:
+                nogood.append(self.__states[item])
+            
             if not control.add_nogood(nogood) or not control.propagate():
                 return    
             
@@ -245,13 +250,24 @@ class reverbPropagator:
              self.__artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"]):
             self.expansion("clipping")
             self.__reassignments += 1
+            relevant_nogoods = {"selected_wet", "selected_size"}
+            
+            for item in relevant_nogoods:
+                nogood.append(self.__states[item])
+
             if not control.add_nogood(nogood) or not control.propagate():
                 return    
 
-        elif(self.__artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"]):
+        elif(self.__artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"][0] or 
+             self.__artifact_features.cc > self.__artifact_thresholds["cross-correlation"]["thresh"][1]):
             self.expansion("cross-correlation")
             print(self.__artifact_features.cc)
             self.__reassignments += 1
+            relevant_nogoods = {"selected_spread", "selected_wet", "selected_size"}
+            
+            for item in relevant_nogoods:
+                nogood.append(self.__states[item])
+
             if not control.add_nogood(nogood) or not control.propagate():
                 return    
         
@@ -259,7 +275,11 @@ class reverbPropagator:
             self.__artifact_features.clustering_differential_r > self.__artifact_thresholds["cluster_score"]["thresh"]):
             self.expansion("cluster_score")
             self.__reassignments += 1
-            print(self.__artifact_features.clustering_differential_l)
+            relevant_nogoods = {"selected_wet", "selected_size", "selected_spread", "selected_damp"}
+            
+            for item in relevant_nogoods:
+                nogood.append(self.__states[item])
+
             if not control.add_nogood(nogood) or not control.propagate():
                 return    
 
@@ -267,11 +287,17 @@ class reverbPropagator:
             self.__artifact_features.ringing_r > self.__artifact_thresholds["ringing"]["thresh"]):
             self.expansion("ringing")
             self.__reassignments += 1
+            relevant_nogoods = {"selected_wet", "selected_size", "selected_spread", "selected_damp"}
+            
+            for item in relevant_nogoods:
+                nogood.append(self.__states[item])
+
             if not control.add_nogood(nogood) or not control.propagate():
                 return    
 
         else:
             pass
+
 """
         elif(self.__artifact_features.den_diff_differential_l < self.__artifact_thresholds["density_difference"]["thresh"] or
             self.__artifact_features.den_diff_differential_r < self.__artifact_thresholds["density_difference"]["thresh"] or

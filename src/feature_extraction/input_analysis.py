@@ -125,6 +125,8 @@ def mean_spectral_centroid(
 
     This gives us an idea about the brightness of the input
     and ultimetely hints for the room size and damping.
+    The addition of 1e-10 tries to avoid, that the centroid leans to higher frequencies 
+    for silent parts of the input signal
     """
     
     spec_cen_left = librosa.feature.spectral_centroid(y=y[0]+1e-10, sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
@@ -146,8 +148,8 @@ def mean_spectral_flatness(
     - The closer the result to 100, the more noisy it is
     """
 
-    flatness_left = (librosa.feature.spectral_flatness(y=y[0])[0]) * 100
-    flatness_right = (librosa.feature.spectral_flatness(y=y[1])[0]) * 100
+    flatness_left = (librosa.feature.spectral_flatness(y=y[0])) * 100
+    flatness_right = (librosa.feature.spectral_flatness(y=y[1])) * 100
     mean_flatness = np.mean([flatness_left, flatness_right])
     return np.rint(mean_flatness)
 
@@ -173,13 +175,11 @@ def spectral_spread(
     freqs = librosa.fft_frequencies(sr=sr, n_fft=NFFT)
     S_left_mag = np.abs(S_l)
     S_right_mag = np.abs(S_r)
-
     S_left_norm = S_left_mag / (np.sum(S_left_mag, axis=0, keepdims=True) + 1e-10)
     S_right_norm = S_right_mag / (np.sum(S_right_mag, axis=0, keepdims=True) + 1e-10)
 
-    spread_left = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_left)**2) * S_left_norm, axis=0))
-    spread_right = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_right)**2) * S_right_norm, axis=0))
-    
+    spread_left = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_left)**2) * S_left_norm, axis=0)/np.sum(S_left_norm))
+    spread_right = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_right)**2) * S_right_norm, axis=0)/np.sum(S_right_norm))
     return int(np.mean([np.mean(spread_left), np.mean(spread_right)]))
 
 def compute_spectral_rolloff(

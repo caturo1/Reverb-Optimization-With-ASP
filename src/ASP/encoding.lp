@@ -1,34 +1,79 @@
+#include "./instance.lp".
+
+#const max_wet = 95.
+#const max_size = 95.
+#const min_wet = 5.
+#const min_size = 5.
+
 % only one value per parameter
 1 { selected_size(R) : size(R) } 1.
 1 { selected_damp(D) : damping(D) } 1.
 1 { selected_wet(W) : wet_level(W) } 1.
 1 { selected_spread(S) : spread(S) } 1.
 
-:- selected_size(R), selected_wet(W), W + R > 130.
-:- selected_size(R), R < 5.
+% I think this might quickly lead to UNSAT
+% Also rules are hard to set because the relationships aren't linear between reverb parameters and features
+%selected_size(X) :- dr(D), X = 100 - D.
 
+% Try to reduce excessive parameter setting that might create artifacts
+% But we still want to hear the reverb and avoid models that don't apply reverb
+% In this case we'd want UNSAT
+:- selected_wet(W), selected_size(R), W < min_wet , R < min_size.
+:- selected_wet(W), W < min_wet.
+:- selected_wet(W), W > max_wet. 
+:- selected_size(R), R > max_size.
+:- selected_size(R), R < min_size.
+:- selected_size(R), selected_wet(W), R + W > 160.
+:- selected_wet(W), selected_size(R), W > max_wet, R > max_size.
+% :- selected_size(R), selected_wet(W), W + R > 180. same as above
+:- selected_wet(W), selected_damp(D), W > 60, D < 46.
+
+% Set damp-related setting
 :- selected_damp(D), spectral_centroid(S), S < 500, D > 25.
 :- selected_damp(D), spectral_centroid(S), S > 4000, D < 50.
-:- density_population(P), selected_damp(D), D > 80, P < 2500.
-:- density_population(P), 
-   selected_wet(SW), 
-   selected_damp(SD), 
-   P > 3500, SW > 40, SD < 40. 
+:- spectral_centroid(C), spectral_spread(P), selected_size(S), C < 600, P > 1000, S > 45.
 
 :- spectral_centroid(C), 
-   spectral_flatness(F), 
+   spectral_flatness(F),
    spectral_spread(S),
    selected_damp(D),
    selected_wet(W),
    C < 2000, F > 30, S > 1500, D < 38, W > 70.
 
-:- selected_wet(W), W < 5.
-:- selected_wet(W), W > 95.
-:- selected_size(R), R > 95.
-:- selected_wet(W), selected_damp(D), W > 60, D < 46.
+% Set constraints if the sound is noisy
+:- spectral_flatness(F), selected_damp(D), F > 75, D < 60.
+:- spectral_flatness(F), selected_size(S), selected_wet(W), F > 70, S > 35, W > 50.
 
+% Set constraints on energy (density, rms, rms difference between channels) across channels
+:- density_population(P), selected_size(R), selected_wet(W), P < 400, R < 30, W < 20.
+:- density_population(P), selected_size(R), P > 3500, R < 55.
+:- density_population(P), selected_damp(D), D > 80, P < 2500.
+:- density_population(P), 
+   selected_wet(W), 
+   selected_damp(D), 
+   P > 3500, W > 60, D < 40.
+
+:- dr(D), selected_size(S), selected_wet(W), D < 30, S > 60, W > 25.
+% conflict for 95 dynamic range, why is my wet only 5? This is very odd
+:- dr(D), selected_size(S), selected_wet(W), D > 82, S < 20, W < 30.
+
+:- rms_channel_balance(B), selected_spread(S), B > 60, S < 60.
+:- rms_channel_balance(B), selected_spread(S), B < 20, S > 40, S < 10.
+:- rms(E), selected_size(S), E > 90, S > 20.
+:- rms(E), selected_wet(W), E < 20, W < 60.
+
+% Set spread-related parameters
+% Roughly, if we have a mono/quite mono signal, we want higher spread parameters
+% If we already have a spread input audio, the spread of the reverb should be small
 :- mid(M), side(X), selected_spread(Y), X > M, Y > 30.
-:- mid(M), side(X), selected_spread(Y), M > X, Y < 40.
+:- mid(M), side(X), selected_spread(Y), U = X + 10, M > U, Y < 40.
+:- mid(M), side(X), selected_spread(Y), M + X > 79, Y > 60, Y < 15.
+:- mid(M), side(X), selected_spread(Y), M + X < 10, Y < 40.
+
+% weak constraints
+%:~ selected_size(R), selected_wet(W), R > 80, W > 80. [1@1, R]
+% if we have small size(room) and wet, we want to penalize wet  to at least hear sth
+% :~ selected_size(R), selected_wet(W), W > 50. [1@1, R]
 
 #show selected_size/1.
 #show selected_damp/1.

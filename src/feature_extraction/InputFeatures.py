@@ -45,7 +45,7 @@ class InputFeatures:
 
     def create_instance(self) -> Optional[str]:
         """Creation of an instance string describing our input for ASP guessing"""
-        
+
         instance = f"""
 rms({int(self.rms_mean)}).
 rms_channel_balance({int(self.rms_channel_balance)}).
@@ -57,4 +57,6 @@ spectral_centroid({int(self.spectral_centroid)}).
 spectral_flatness({int(self.spectral_flatness)}).
 spectral_spread({int(self.spectral_spread)})."""
         AspHandler.write_instance(instance, self.instance_file_path)
+
+        print(instance)
         

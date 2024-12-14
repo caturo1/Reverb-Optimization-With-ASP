@@ -6,9 +6,12 @@ from reverbPropagator import reverbPropagator as REVProp
 from ArtifactFeatures import ArtifactFeatures
 from InputFeatures import InputFeatures
 import input_analysis as ia
-from typing import Sequence
-from clingo import Flag, Propagator, Control
-from clingo.application import Application, clingo_main
+from typing import Sequence, cast
+from reverb import reverb_application
+from clingo.propagator import Propagator
+from clingo.application import Application, clingo_main, Flag
+from clingo.control import Control
+from clingo.solving import SolveResult
 
 class ReverbOptimizer(Application):
     """
@@ -28,6 +31,7 @@ class ReverbOptimizer(Application):
         self.__encoding                             = "../ASP/encoding.lp"
         self.__input_features: InputFeatures        = None
         self.answer_sets                            = []
+        self.__base_content                         = ""
         
         # initiate the directory for the processed audio
         self.output_dir: str = os.path.join(
@@ -80,7 +84,32 @@ class ReverbOptimizer(Application):
             sys.exit(1)
 
         self.__input_features = InputFeatures(y=y, sr=sr)
+        self.store_base_content(self.__input_features.instance_file_path)
         self.__input_features.create_instance()
+
+    def store_base_content(self, instance_file_path) -> None:
+        if (not isinstance(instance_file_path, str)):
+            print("Instance file path dubious")
+            sys.exit(1)
+
+        try:
+            with open(instance_file_path) as f:
+                for line in f:
+                    self.__base_content += line
+        except IOError as e:
+            print(f"Input error {e}")
+            sys.exit(1)
+    
+    def reset(self, instance_file_path):
+        try:
+            with open(instance_file_path, "r+") as f:
+                f.seek(0)
+                f.write(self.__base_content)
+                f.truncate()
+        except IOError as e:
+            print("Couldn't reset instance.lp file")
+            sys.exit(1)
+
 
     def main(self, ctl: Control, files: Sequence[str]) -> None:
         """
@@ -106,7 +135,7 @@ class ReverbOptimizer(Application):
         if self.__display:
             print("Loading encodings")
         ctl.load(self.__encoding)
-        ctl.load(self.__input_features.instance_file_path)
+#        ctl.load(self.__input_features.instance_file_path)
 
         ## 3) Ground the encoding
         if self.__display:
@@ -119,12 +148,15 @@ class ReverbOptimizer(Application):
                                                   input_path=self.__audio_file,
                                                   input_features=self.__input_features,
                                                   n_frames = self.__input_features.mel_left.shape[1]))
+        
         with ctl.solve(yield_=True) as hnd:
             for model in hnd:
                 atoms_list = model.symbols(shown=True)
                 self.answer_sets.append(atoms_list)
                 if self.__display:
                     print()
-        
+
+        self.reset(self.__input_features.instance_file_path)
+
 if __name__ == "__main__":
     sys.exit(int(clingo_main(ReverbOptimizer(), sys.argv[1:])))

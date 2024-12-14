@@ -47,3 +47,16 @@ class ArtifactFeatures:
         # where 528 will basically never happen. Thresholds will have to be defined later on
         self.ringing_l = aa.ringing(self.mel_left, mel_l_org)
         self.ringing_r = aa.ringing(self.mel_right, mel_r_org)
+
+    def to_string(self):
+        """
+        Just print the object to print
+        """
+        print(f"Bass to mid: {self.b2mR_L, self.b2mR_R}\n"
+              f"clipping: {self.clipping_l, self.clipping_r}\n"
+              f"Cross-correlation: {self.clipping_l}\n"
+              f"density-stability: {self.den_stability_differential_l, self.den_stability_differential_r}\n"
+              f"density-difference: {self.den_diff_differential_l, self.den_diff_differential_r}\n"
+              f"clutering: {self.clustering_differential_l, self.clustering_differential_r}\n"
+              f"ringing: {self.ringing_l, self.ringing_r}")
+        
