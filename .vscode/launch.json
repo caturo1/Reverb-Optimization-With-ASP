@@ -8,8 +8,9 @@
             "program": "${file}",
             "console": "integratedTerminal",
             "args": [
-                "C:/Schreibtisch/Coding/Reverb-Optimization-With-ASP/data/cello_climb_quiet_highMids_postprocessed_organic.wav",
-                "C:/Schreibtisch/Coding/Reverb-Optimization-With-ASP/src/ASP/encoding.lp"
+                "--audio-file",
+                "vocal_av_amp_clean_static_organic.wav",
+                "--display"
             ]
         }
     ]

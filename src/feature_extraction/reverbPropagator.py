@@ -4,6 +4,7 @@ from util import parameter_conversion
 from ArtifactFeatures import ArtifactFeatures
 import input_analysis as ia 
 import reverb
+import random
 
 """
 The gist is:
@@ -75,7 +76,12 @@ class reverbPropagator:
         self.__states               = {} ## Use a list to preserve states
         self.__symbols              = {}
         self.__display              = display
-
+        self.__parameters           = {
+            "selected_size" : 0,
+            "selected_damp" : 0,
+            "selected_wet" : 0,
+            "selected_spread" : 0
+        }
         
     def init(self, init: PropagateInit):
         """
@@ -181,7 +187,7 @@ class reverbPropagator:
         
         for lit in changes:
             if lit in state:
-                del state[lit]        
+                del state[lit]
         
     def check(self, control: Control):
         """
@@ -199,8 +205,9 @@ class reverbPropagator:
         nogood   = []
 
             # now iterate over the state dictionary
+            ## !!! bug: not properly assigning identifiers to the parameters, therefore map solver literals to parameters
         for lit, value in sorted(state.items()):
-
+            
             ## 3) In the check function, apply the respective gains
             parameter_value = parameter_conversion(value)
             parameters[f"{lit}"] = parameter_value
@@ -210,12 +217,12 @@ class reverbPropagator:
 
         ## 1) Apply reverb with the current parameters
         processed = reverb.reverb_application(
-            input=self.__input_path, 
-            output=str(self.__output_path), 
+            input=self.__input_path,
+            output=str(self.__output_path),
             parameters=parameters)
 
         ## 2) Load reverbated audio and run artifacts analyzer
-        try: 
+        try:
             output, _ = ia.load_audio(processed)
         
         except Exception as e:
@@ -290,7 +297,7 @@ class reverbPropagator:
             relevant_nogoods = {"selected_wet", "selected_size", "selected_spread", "selected_damp"}
             
             for item in relevant_nogoods:
-                nogood.append(self.__states[item])
+                nogood.append(self.__states[self.__symbols[item]])
 
             if not control.add_nogood(nogood) or not control.propagate():
                 return    

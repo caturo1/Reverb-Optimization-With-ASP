@@ -94,6 +94,8 @@ def rms_features(
     rms_mean = np.rint(np.mean(scaled_rms))
     rms_left_mean = np.rint(np.mean(scaled_left))
     rms_right_mean = np.rint(np.mean(scaled_right))
+
+    ## this indicated the energy difference between channels (not necessarily, that they are mono/stereo originally)
     rms_channel_balance = np.rint(np.abs(rms_left_mean - rms_right_mean))
 
     return scaled_rms, rms_mean, rms_channel_balance
@@ -198,7 +200,9 @@ def compute_spectral_rolloff(
 
 
 def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
-    """Mid/side analysis for stereo spread parameter."""
+    """Mid/side analysis for stereo spread parameter.
+    Compared to rms_channel_balance, this indicates stereo/mono.
+    """
 
     if len(y[0]) != len(y[1]):
         raise ValueError("Left and Right channel need to be of equal length")

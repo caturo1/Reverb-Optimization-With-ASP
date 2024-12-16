@@ -199,9 +199,9 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             post_max=3,
             pre_avg=10,
             post_avg=10,
-            delta=0.35,
+            delta=0.8,
             wait=10)
-        
+
         # this  gives me just how many peaks I gave per frame in relation to the whole audio
         # I could expand this to the different frequency bands
         density[frame_idx] = len(peaks) / n_frames
