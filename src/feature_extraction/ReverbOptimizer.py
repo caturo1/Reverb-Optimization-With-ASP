@@ -31,6 +31,7 @@ class ReverbOptimizer(Application):
         self.__encoding                             = "../ASP/encoding.lp"
         self.__input_features: InputFeatures        = None
         self.answer_sets                            = []
+        self.__dynamic                              = Flag(False)
         self.__base_content                         = ""
         
         # initiate the directory for the processed audio
@@ -66,8 +67,14 @@ class ReverbOptimizer(Application):
             "display",
             dedent("""Display more information"""),
             self.__display)
+        
+        options.add_flag(
+            group,
+            "dynamic",
+            dedent("""Dynamically add nogoods depending on the violated artifact"""),
+            self.__dynamic
+        )
 
-# kann ich auch zusammenlegen aber später
     def read_input(self, sample: str) -> None:
         """
         Read input and internally analyze features and create instance file
@@ -144,10 +151,11 @@ class ReverbOptimizer(Application):
 
         ## 4) Register Propagator and solve according to its logic
         ctl.register_propagator(REVProp(display=self.__display,
-                                                  output_file_path=output_path,
-                                                  input_path=self.__audio_file,
-                                                  input_features=self.__input_features,
-                                                  n_frames = self.__input_features.mel_left.shape[1]))
+                                        output_file_path=output_path,
+                                        input_path=self.__audio_file,
+                                        input_features=self.__input_features,
+                                        n_frames=self.__input_features.mel_left.shape[1],
+                                        dynamics=self.__dynamic))
         
         with ctl.solve(yield_=True) as hnd:
             for model in hnd:

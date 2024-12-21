@@ -59,4 +59,18 @@ class ArtifactFeatures:
               f"density-difference: {self.den_diff_differential_l, self.den_diff_differential_r}\n"
               f"clutering: {self.clustering_differential_l, self.clustering_differential_r}\n"
               f"ringing: {self.ringing_l, self.ringing_r}")
-        
+    
+    def reset(self):
+        self.mel_left = None
+        self.mel_right = None
+        self.clipping_l = None
+        self.clipping_r = None
+        self.b2mR_L = None
+        self.b2mR_R = None 
+        self.cc = None
+        self.den_stability_differential_l = None
+        self.den_diff_differential_l = None
+        self.den_stability_differential_r = None
+        self.den_diff_differential_r = None
+        self.clustering_differential_l = None
+        self.clustering_differential_r = None

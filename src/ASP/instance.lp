@@ -1,9 +1,13 @@
 % our target parameters
 % 0-1 mapped to 0-100 and vice versa
-damping(0..100).
-size(0..100).
-spread(0..100).
-wet_level(0..100).
+#const max = 95.
+#const min = 5.
+#const step = 5.
+
+{size(R)} :- R = min..max, R \ step = 0.
+{damping(D)} :- D = min..max, D \ step = 0.
+{wet_level(W)} :- W = min..100, W \ step = 0.
+{spread(S)} :- S = 10..max, S \ step = 0.
 
 % our analyzed features and respective ranges
 % features related to energy contained in the signal
@@ -20,129 +24,3 @@ wet_level(0..100).
 % spectral_centroid(0..20_000)
 % spectral flatness ()
 % spectral_spread(0.20_000)
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).
-rms(67).
-rms_channel_balance(0).
-dr(95).
-density_population(335).
-mid(40).
-side(40).
-spectral_centroid(4321).
-spectral_flatness(2).
-spectral_spread(211).

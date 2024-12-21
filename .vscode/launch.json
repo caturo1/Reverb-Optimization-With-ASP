@@ -2,16 +2,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Current File with Arguments",
+            "name": "Python Debugger: Current File (reverb) with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "${file}",
+            "program": "${workspaceFolder}/src/feature_extraction/ReverbOptimizer.py",
             "console": "integratedTerminal",
             "args": [
                 "--audio-file",
-                "vocal_av_amp_clean_static_organic.wav",
+                "squareish_loud_high_clean_synthetic_annoying.wav",
                 "--display"
-            ]
+            ],
+            "cwd": "${workspaceFolder}/src/feature_extraction"
         }
     ]
 }
