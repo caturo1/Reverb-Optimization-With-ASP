@@ -1,0 +1,21 @@
+"""
+src/
+    __init__.py
+    application/
+        __init__.py
+        ASPHandler.py
+        reverb.py
+        ReverbOptimizer.py
+        reverbPropagator.py
+    ASP/
+        encoding.lp
+        instance.lp
+    feature_extraction/
+        __init__.py
+        artifact_analysis.py
+        ArtifactFeatures.py
+        input_analysis.py
+        InputFeatures.py
+        spectral_analysis.py
+        util.py
+"""

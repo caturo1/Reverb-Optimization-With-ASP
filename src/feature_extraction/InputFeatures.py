@@ -1,8 +1,7 @@
 import os
 import numpy as np
-import sys
-from AspHandler import *
-import input_analysis as ia
+from src.application.AspHandler import AspHandler
+from . import input_analysis as ia
 from typing import Optional
 
 # important: For all spectral features, instead of passing y, pass stft of left and right channel
@@ -26,6 +25,9 @@ class InputFeatures:
 
     def __init__(self, y: np.ndarray, sr: float):
         # store path
+        if y.ndim != 2 or y is None:
+            raise ValueError("Input array not applicable.")
+
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
         
@@ -39,7 +41,8 @@ class InputFeatures:
         self.density = (100 - self.dynamic_range) * self.rms_mean
         self.mid, self.side = ia.mid_side(y)
         self.spectral_centroid, centroid_l, centroid_r = ia.mean_spectral_centroid(y=y, sr=sr)
-        self.spectral_flatness = ia.mean_spectral_flatness(y=y)
+        # self.spectral_flatness = ia.mean_spectral_flatness(y=y)
+        self.spectral_flatness = ia.custom_flatness(y=y)
         self.spectral_spread = ia.spectral_spread(S_l=self.stft_left, S_r=self.stft_right, sr=sr, centroid_left=centroid_l, centroid_right=centroid_r)
 
 
@@ -57,4 +60,6 @@ spectral_centroid({int(self.spectral_centroid)}).
 spectral_flatness({int(self.spectral_flatness)}).
 spectral_spread({int(self.spectral_spread)})."""
         AspHandler.write_instance(instance, self.instance_file_path)
+
+        return instance
         

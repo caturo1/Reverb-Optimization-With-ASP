@@ -20,6 +20,7 @@
 % Set damp-related setting
 :- selected_damp(D), spectral_centroid(C), C < 500, D > 25.
 :- selected_damp(D), spectral_centroid(C), C > 4000, D < 50.
+:- selected_damp(D), spectral_centroid(C), spectral_spread(S), C > 1000, S > 200, D < 30.
 :- spectral_centroid(C), spectral_spread(P), selected_size(S), C < 600, P > 1000, S > 45.
 
 :- spectral_centroid(C), 
@@ -27,11 +28,11 @@
    spectral_spread(S),
    selected_damp(D),
    selected_wet(W),
-   C < 2000, F > 30, S > 1500, D < 40, W > 70.
+   C < 2000, F > 30, S > 250, D < 40, W > 70.
 
 % Set constraints if the sound is noisy
-:- spectral_flatness(F), selected_damp(D), F > 75, D < 60.
-:- spectral_flatness(F), selected_size(S), selected_wet(W), F > 70, S > 35, W > 50.
+:- spectral_flatness(F), selected_damp(D), F > 60, D < 60.
+:- spectral_flatness(F), selected_size(S), selected_wet(W), F > 55, S > 35, W > 50.
 
 % Set constraints on energy (density, rms, rms difference between channels) across channels
 :- density_population(P), selected_size(R), selected_wet(W), P < 400, R < 30, W < 20.
@@ -44,10 +45,10 @@
 
 :- dr(D), selected_size(R), selected_wet(W), D < 30, R > 60, W > 25.
 % conflict for 95 dynamic range, why is my wet only 5? This is very odd
-:- dr(D), selected_size(R), selected_wet(W), D > 80, R < 20, W < 30.
+:- dr(D), selected_size(R), selected_wet(W), D > 70, R < 20, W < 30.
 
 :- rms_channel_balance(B), selected_spread(S), B > 60, S < 60.
-:- rms_channel_balance(B), selected_spread(S), B < 20, S > 40, S < 10.
+:- rms_channel_balance(B), selected_spread(S), B < 20 , S > 40, S < 10.
 :- rms(E), selected_wet(W), selected_size(S), E > 90, W > 35, S > 50.
 :- rms(E), selected_wet(W), E < 20, W < 60.
 

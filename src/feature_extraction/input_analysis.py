@@ -95,7 +95,8 @@ def rms_features(
     rms_left_mean = np.rint(np.mean(scaled_left))
     rms_right_mean = np.rint(np.mean(scaled_right))
 
-    ## this indicated the energy difference between channels (not necessarily, that they are mono/stereo originally)
+    ## this indicated the energy difference between channels
+    ## indicating panning
     rms_channel_balance = np.rint(np.abs(rms_left_mean - rms_right_mean))
 
     return scaled_rms, rms_mean, rms_channel_balance
@@ -139,7 +140,7 @@ def mean_spectral_centroid(
 # scaling is odd (pure noise had values of 8 on a scale of 0..100)
 def mean_spectral_flatness(
         y: Optional[np.ndarray]
-        ) -> Tuple[float,float]:
+        ) -> float:
     """
     Noisiness vs Tonalness
     
@@ -150,10 +151,31 @@ def mean_spectral_flatness(
     - The closer the result to 100, the more noisy it is
     """
 
-    flatness_left = (librosa.feature.spectral_flatness(y=y[0])) * 100
-    flatness_right = (librosa.feature.spectral_flatness(y=y[1])) * 100
-    mean_flatness = np.mean([flatness_left, flatness_right])
+    flatness = (librosa.feature.spectral_flatness(y=y, n_fft=NFFT, hop_length=HOPS))
+    new = (flatness.reshape(-1,1)) * 100
+    print(np.amin(new), np.amax(new), np.mean(new))
+    mean_flatness = np.mean(new)
     return np.rint(mean_flatness)
+
+def custom_flatness(y: np.ndarray):
+    S = np.abs(librosa.stft(y=y, n_fft=NFFT, hop_length=HOPS))
+    n_bins = S.shape[0]
+    n_frames = S.shape[1]
+    
+    frame_flatness = np.zeros(n_frames)
+    for i in range(n_frames):
+        slice = S[:,i]
+        geometric_mean = np.exp(np.mean(np.log(slice + 1e-10)))
+        arithmetic_mean = np.mean(slice)
+
+        res = geometric_mean / (arithmetic_mean + 1e-10)
+        frame_flatness[i] = res
+
+
+    mean = np.mean(frame_flatness) * 100
+
+    return np.rint(mean)
+
 
 #TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)
 def spectral_spread(
@@ -207,11 +229,8 @@ def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[
     if len(y[0]) != len(y[1]):
         raise ValueError("Left and Right channel need to be of equal length")
 
-    if y is None or y.ndim != 2 or y.shape[1] == 0:
-        raise ValueError("Needs to be a non-empty 2D array")
-
-    sum = np.sum([y[0],y[1]], axis=0) / SQRT_2
-    diff = np.sum([y[0],y[1]], axis=0) / SQRT_2
+    sum = (y[0] + y[1]) / SQRT_2
+    diff = (y[0] - y[1]) / SQRT_2
     scaled_sum = asp_scaling(sum.reshape(-1,1))
     scaled_diff = asp_scaling(diff.reshape(-1,1))
     mid = np.rint(np.mean(scaled_sum))

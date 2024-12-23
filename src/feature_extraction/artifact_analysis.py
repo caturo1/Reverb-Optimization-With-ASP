@@ -51,8 +51,6 @@ def db_scaling(value) -> int:
 # since this might cluster to many frequencies into one bin
 # also, most methods work for one channel so either expand them to stereo input or apply them to each channel
 
-# TODO Implement clipping detector (like 3 successive amplitude peaks above threshold like -0.3 dB or so --audacity's method )
-# Also possible to analyze a histogram and see if we have significant peaks at high levels
 def clipping_analyzer(y: np.ndarray):
     """
     Detection of clipping in one channel of the signal based on 
@@ -113,7 +111,7 @@ def clipping_analyzer(y: np.ndarray):
 
 
 # Check here again
-def muddiness_analyzation(mel_S: np.ndarray):
+def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
     """
     Approximation of perceived muddiness. To be compared to features of the original audio.
     We could also try to calculate the spectral centroid and compare the shift in the centroid between original and processed audio.
@@ -132,19 +130,26 @@ def muddiness_analyzation(mel_S: np.ndarray):
     """
 
     mel_spec = librosa.power_to_db(mel_S)
+    mel_spec_org = librosa.power_to_db(mel_org)
     
     n_bins = mel_spec.shape[1]
     mel_freqs = librosa.mel_frequencies(n_mels=n_bins,fmin=20, fmax=20_000)
     mel_concentrated = np.mean(mel_spec, axis=0)
+    mel_concentrated_org = np.mean(mel_spec_org, axis=0)
 
-    scores = {}
+    scores_org = {}
+    scores_proc = {}
     for key in FREQ_BANDS:
-        scores[key] = np.mean(mel_concentrated[FREQ_BANDS[key]["mask"](mel_freqs)])
+        scores_org[key] = np.mean(mel_concentrated[FREQ_BANDS[key]["mask"](mel_freqs)])
+        scores_proc[key] = np.mean(mel_concentrated_org[FREQ_BANDS[key]["mask"](mel_freqs)])
 
     # and how much bass/mids are make up the energy
-    bass_to_mid_ratio = scores["bass"] - scores["mid"]
+    bass_to_mid_ratio_org = scores_org["bass"] - scores_org["mid"]
+    bass_to_mid_ratio_proc = scores_proc["bass"] - scores_proc["mid"]
     
-    return bass_to_mid_ratio
+    b2m_channel = bass_to_mid_ratio_proc - bass_to_mid_ratio_org
+
+    return b2m_channel
 
 # implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
@@ -198,8 +203,8 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             pre_max=3,
             post_max=3,
             pre_avg=10,
-            post_avg=10,
-            delta=0.8,
+            post_avg=5,
+            delta=0.4,
             wait=10)
 
         # this  gives me just how many peaks I gave per frame in relation to the whole audio
@@ -344,7 +349,7 @@ def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
 
 def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     """
-    Ringing frequency analyzer
+    Sound event (Ringing) analyzer.
     
     Trying to detect ringing by analyzing the occurence of peaks in similar frequencies
     over consecutive frames.
