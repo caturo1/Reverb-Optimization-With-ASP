@@ -4,7 +4,7 @@ Code and misc for my bachelor thesis "Digital Signal Processing with ASP: Optimi
 
 From the root directory, run the application with:
 ```
-python -m src.application.ReverbOptimizer --audio-file name
+python -m src.application --audio-file name
 ```
 
 You can set the additional flags:

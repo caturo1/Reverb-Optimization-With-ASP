@@ -6,9 +6,9 @@ such as the
 * ASPHandler, that writes the instance file for each application run
 """
 
-from .ReverbOptimizer import ReverbOptimizer
-from .reverbPropagator import reverbPropagator
-from .AspHandler import AspHandler
+from . import ReverbOptimizer
+from . import reverbPropagator
+from . import AspHandler
 
 __all__ = [
     'ReverbOptimizer',

@@ -3,8 +3,8 @@ import os
 import numpy as np
 from timeit import default_timer as timer
 from textwrap import dedent
-import src.application.reverbPropagator as REVProp
-from src.feature_extraction import InputFeatures, load_audio
+from . import reverbPropagator as REVProp
+from ..feature_extraction import InputFeatures, load_audio
 from typing import Sequence
 from clingo.application import Application, clingo_main, Flag
 from clingo.control import Control
@@ -37,6 +37,7 @@ class ReverbOptimizer(Application):
             os.path.dirname(
                 os.path.abspath(__file__)), 
                 '..\..\processed_data')
+
         os.makedirs(self.output_dir, exist_ok=True)
 
     def __parse_audio_file(self, value):
@@ -78,7 +79,7 @@ class ReverbOptimizer(Application):
         Read input and internally analyze features and create instance file
         
         Parameters:
-        ----------
+        -----------
             sample: Path to the input audio
         """
         try: 
@@ -101,8 +102,8 @@ class ReverbOptimizer(Application):
 
         try:
             with open(instance_file_path) as f:
-                for line in f:
-                    self.__base_content += line
+                    self.__base_content = f.read()
+    
         except IOError as e:
             print(f"Input error {e}")
             sys.exit(1)
@@ -156,7 +157,7 @@ class ReverbOptimizer(Application):
         el2 = s3 - s2
 
         ## 4) Register Propagator and solve according to its logic
-        ctl.register_propagator(REVProp(display=self.__display,
+        ctl.register_propagator(REVProp.reverbPropagator(display=self.__display,
                                         output_file_path=output_path,
                                         input_path=self.__audio_file,
                                         input_features=self.__input_features,
@@ -167,7 +168,7 @@ class ReverbOptimizer(Application):
             for model in hnd:
                 atoms_list = model.symbols(shown=True)
                 self.answer_sets.append(atoms_list)
-        checks_t, analyze_t, read_t, reverb_t = REVProp.get_time_features()
+        checks_t, analyze_t, read_t, reverb_t = REVProp.reverbPropagator.get_time_features()
 
         self.reset(self.__input_features.instance_file_path)
         
@@ -183,7 +184,8 @@ class ReverbOptimizer(Application):
                   f"Applying reverb: {reverb_t}\n"
                   f"Overall runtime: {overall_t}\n"
                   f"Solving time see clingo stats.")
-                
-
+            
 if __name__ == "__main__":
+    import warnings
+    warnings.warn("use 'python -m application' not 'python -m application.ReverbOptimizer'", DeprecationWarning)
     sys.exit(int(clingo_main(ReverbOptimizer(), sys.argv[1:])))

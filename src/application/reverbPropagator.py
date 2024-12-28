@@ -2,8 +2,8 @@ from clingo import Control, PropagateControl, PropagateInit, PropagatorCheckMode
 from timeit import default_timer as timer
 import sys
 import os
-from src.feature_extraction import ArtifactFeatures, load_audio, parameter_conversion
-import src.audio.reverb as reverb
+from ..feature_extraction import ArtifactFeatures, load_audio, parameter_conversion
+from ..audio import reverb_application as reverb
 
 GLOBAL_READ = 0
 GLOBAL_ANALYZE = 0
@@ -317,13 +317,12 @@ class reverbPropagator:
 
         ## 1) Apply reverb with the current parameters
         s10 = timer()
-        reverb.reverb_application(
+        reverb(
             input=self.__input_path,
             output=str(self.__output_path),
             parameters=parameters)
         s11 = timer()
         el6 = s11 - s10
-        print(f"Time for reapplying new reverb: {el6}")
         GLOBAL_REVERB += el6
 
         ## 2) Load reverbated audio and run artifacts analyzer
@@ -332,7 +331,6 @@ class reverbPropagator:
             output, _ = load_audio(self.__output_path)
             s5 = timer()
             el3 = s5 - s4
-            print(f"Time for reading new reverbrated output: {el3}")
             GLOBAL_READ += el3
 
             s6 = timer()
@@ -342,7 +340,6 @@ class reverbPropagator:
                 mel_r_org=self.__input_feats.mel_right)
             s7 = timer()
             el4 = s7 - s6
-            print(f"Time for analyzing new reverbated audio: {el4}")
             GLOBAL_ANALYZE += el4
 
 
@@ -350,23 +347,27 @@ class reverbPropagator:
             print(f"Error {e} processing reverbrated audio")
             sys.exit(1)
         
-        if display:
-            print(f"Assigned new parameters to {parameters} with artifacts as:")
-            artifact_features.to_string()
 
         s8 = timer()
         if (not self.__dynamic):
             res = self.bulkcheck(artifact_features)
             if (self.__display):
-                print("Added bulk nogoods")
+                print("Added bulk nogoods\n")
         else:
             res = self.dynamic_check(artifact_features, nogood, state)
             if (self.__display):
-                print("Added only relevant nogoods")
+                print("Added only relevant nogoods\n")
         s9 = timer()
         el5 = s9 - s8
-        print(f"Elapsed time for artifact checks: {el3}")
         GLOBAL_CHECKS += el5
+
+        if display:
+            print(f"Elapsed time for artifact checks: {el3}")
+            print(f"Time for reapplying new reverb: {el6}")
+            print(f"Time for reading new reverbrated output: {el3}")
+            print(f"Time for analyzing new reverbated audio: {el4}\n\n")
+            print(f"Assigned new parameters to {parameters} with artifact-check results:")
+            artifact_features.to_string()
 
         if (res and
             (not control.add_nogood(nogood)
