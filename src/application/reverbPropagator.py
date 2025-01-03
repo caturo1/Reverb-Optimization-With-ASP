@@ -24,7 +24,7 @@ How this propagator works
 """
     
 class reverbPropagator:
-    def __init__(self, display, output_file_path, input_path, input_features, n_frames, dynamics):
+    def __init__(self, display, input_name, input_path, input_features, output_dir, n_frames, dynamics, model_n):
         """
         Called once before solving to set up data structures used in theory propagation.
 
@@ -35,9 +35,9 @@ class reverbPropagator:
 
         """
 
-        self.__output_path          = output_file_path
         self.__reassignments        = 0
         self.__input_feats          = input_features
+        self.model_number           = model_n
         self.__artifact_thresholds  = {
             "clipping" : {
                 "thresh" : 0.6,
@@ -82,7 +82,9 @@ class reverbPropagator:
         self.__dynamic              = dynamics
         # we need this to map solver literals back to parameter values
         self.__parameters           = {}
-        
+        self.__input_name           = input_name
+        self.__output_dir           = output_dir
+
     def init(self, init: PropagateInit):
         """
         PropagateInit object to be handed to the init function.
@@ -165,8 +167,14 @@ class reverbPropagator:
 
         if self.__display:
                 print(f"Oops, we have a {conflict} artifact! Add nogood")
-        
+        ## --> for cross correlation debug
         if self.__reassignments > 15 and self.__artifact_thresholds[conflict]["count"] > 0:
+            if conflict == "cross-correlation":
+                self.__artifact_thresholds[conflict]["thresh"] = \
+                    (self.__artifact_thresholds[conflict]["thresh"][0] * self.__artifact_thresholds[conflict]["adjustment"],\
+                        self.__artifact_thresholds[conflict]["thresh"][1] * self.__artifact_thresholds[conflict]["adjustment"])
+                self.__artifact_thresholds[conflict]["count"] -= 1
+                return
             self.__artifact_thresholds[conflict]["thresh"] *= self.__artifact_thresholds[conflict]["adjustment"]
             self.__artifact_thresholds[conflict]["count"] -= 1
 
@@ -213,76 +221,67 @@ class reverbPropagator:
         We will later compare the length of nogoods between this and bulkcheck,
         therefore just at literals if they aren't contained in the nogood list yet.
         """
-        flag = False
-
-        if (artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
-            artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"]):
-            self.expansion("bass-to-mid")
-            self.__reassignments += 1
-            for item, _ in state.items():
-                if item not in nogood:
-                    if self.__parameters[item] == "selected_damp":    
-                        nogood.append(item)
-                        
-                    if self.__parameters[item] == "selected_size":
-                        nogood.append(item)
-            
-            flag = True
-            
-        if (artifact_features.clipping_r > self.__artifact_thresholds["clipping"]["thresh"] or
-             artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"]):
-            self.expansion("clipping")
-            self.__reassignments += 1
-
-            for item, _ in state.items():
-                if item not in nogood:
-                    if self.__parameters[item] == "selected_wet":
-                        nogood.append(item)
-                    if self.__parameters[item] == "selected_size":
-                        nogood.append(item)
-            
-            flag = True
-
-        if (artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"][0] or 
-             artifact_features.cc > self.__artifact_thresholds["cross-correlation"]["thresh"][1]):
-            self.expansion("cross-correlation")
-            print(artifact_features.cc)
-            self.__reassignments += 1
-            
-            for item, _ in state.items():
-                if item not in nogood:
-                    if self.__parameters[item] == "selected_wet":
-                        nogood.append(item)
-                    if self.__parameters[item] == "selected_size":
-                        nogood.append(item)
-                    if self.__parameters[item] == "selected_spread":
-                        nogood.append(item)
-
-            flag = True
-        """        
-        if (artifact_features.clustering_differential_l > self.__artifact_thresholds["cluster_score"]["thresh"] or
-            artifact_features.clustering_differential_r > self.__artifact_thresholds["cluster_score"]["thresh"]):
-            self.expansion("cluster_score")
-            self.__reassignments += 1
-             
-            for item, _ in state.items():
-                if item not in nogood:
-                    nogood.append(item) 
-
-            flag = True
-        """ 
-        if (artifact_features.ringing_l > self.__artifact_thresholds["ringing"]["thresh"] or
-            artifact_features.ringing_r > self.__artifact_thresholds["ringing"]["thresh"]):
-            self.expansion("ringing")
-            self.__reassignments += 1
-            
-            for item, _ in state.items():
-                if item not in nogood:
-                    nogood.append(item)
-
-            flag = True
         
+        flag = False
+        artifact = {
+            'b2m': (artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
+                    artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"]),
+            
+            'cc': (artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"][0] or
+                artifact_features.cc > self.__artifact_thresholds["cross-correlation"]["thresh"][1]),
+            
+            'ringing': (artifact_features.ringing_l > self.__artifact_thresholds["ringing"]["thresh"] or
+                    artifact_features.ringing_r > self.__artifact_thresholds["ringing"]["thresh"]),
+
+            'clipping': (artifact_features.clipping_r > self.__artifact_thresholds["clipping"]["thresh"] or
+                        artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"])
+        }
+
+        def handle_artifacts(condition, nogood_params=None):
+            """Helper function to handle common artifact processing logic"""
+            nonlocal flag
+            self.expansion(condition)
+            self.__reassignments += 1
+            
+            for item, _ in state.items():
+                if item not in nogood:
+                    if nogood_params:
+                        if self.__parameters[item] in nogood_params:
+                            nogood.append(item)
+                    else:
+                        nogood.append(item)
+            
+            flag = True
+
+        violated = next((key for key, is_violated in artifact.items() if is_violated), None)
+
+        match violated:
+            case 'b2m':
+                handle_artifacts(
+                    condition="bass-to-mid",
+                    nogood_params=["selected_damp", "selected_size"]
+                )
+                
+            case 'cc':
+                handle_artifacts(
+                    condition="cross-correlation",
+                    nogood_params=["selected_wet", "selected_size", "selected_spread"]
+                )
+                
+            case 'clipping':
+                handle_artifacts(
+                    condition="clipping",
+                    nogood_params=["selected_wet", "selected_size"]
+                )
+                
+            case 'ringing':
+                handle_artifacts(
+                    condition="ringing"
+                )
+
+
         return flag
+
 
     def get_time_features():
         return GLOBAL_CHECKS, GLOBAL_ANALYZE, GLOBAL_READ, GLOBAL_REVERB
@@ -317,9 +316,13 @@ class reverbPropagator:
 
         ## 1) Apply reverb with the current parameters
         s10 = timer()
+
+        # Create custom output file with version number according to number of models
+        output_name = f"v{self.model_number}_processed_{self.__input_name}"
+        output_path = os.path.join(self.__output_dir, output_name)
         reverb(
             input=self.__input_path,
-            output=str(self.__output_path),
+            output=str(output_path),
             parameters=parameters)
         s11 = timer()
         el6 = s11 - s10
@@ -328,7 +331,7 @@ class reverbPropagator:
         ## 2) Load reverbated audio and run artifacts analyzer
         try:
             s4 = timer()
-            output, _ = load_audio(self.__output_path)
+            output, _ = load_audio(output_path)
             s5 = timer()
             el3 = s5 - s4
             GLOBAL_READ += el3
@@ -344,7 +347,7 @@ class reverbPropagator:
 
 
         except Exception as e:
-            print(f"Error {e} processing reverbrated audio")
+            print(f"Error {e} processing reverbrated audio.")
             sys.exit(1)
         
 
@@ -367,6 +370,7 @@ class reverbPropagator:
             print(f"Time for reading new reverbrated output: {el3}")
             print(f"Time for analyzing new reverbated audio: {el4}\n\n")
             print(f"Assigned new parameters to {parameters} with artifact-check results:")
+            print(f"Model number: {self.model_number}")
             artifact_features.to_string()
 
         if (res and
@@ -377,8 +381,8 @@ class reverbPropagator:
                     print("Reset artifact_feature object and reverbrated audio "
                            "and explore different parts of the search space")
                 del artifact_features
-                if os.path.exists(str(self.__output_path)):
-                    os.remove(str(self.__output_path))
+                if os.path.exists(str(output_path)):
+                    os.remove(str(output_path))
                 else:
                     print("Output file doesn't exist")
                     sys.exit(1)

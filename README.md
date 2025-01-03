@@ -4,7 +4,7 @@ Code and misc for my bachelor thesis "Digital Signal Processing with ASP: Optimi
 
 From the root directory, run the application with:
 ```
-python -m src.application --audio-file name
+bash $ python -m src.application --audio-file name
 ```
 
 You can set the additional flags:
@@ -12,3 +12,8 @@ You can set the additional flags:
     If set, displays information about internal procedures, audio characteristics, artifacts and time statistics
 * --dynamic:
     If set, this adds only relevant nogoods depending on the detected artifacts; otherwise the reverbrated audio is analyzed for any artifact in bulk mode and adds nogoods bundled
+
+Alternatively, run the "test" script, that runs the Optimizer for every audio file in data with:
+```
+bash $ python -m src.test
+```

@@ -159,7 +159,6 @@ def mean_spectral_flatness(
 
 def custom_flatness(y: np.ndarray):
     S = np.abs(librosa.stft(y=y, n_fft=NFFT, hop_length=HOPS))
-    n_bins = S.shape[0]
     n_frames = S.shape[1]
     
     frame_flatness = np.zeros(n_frames)
@@ -170,7 +169,6 @@ def custom_flatness(y: np.ndarray):
 
         res = geometric_mean / (arithmetic_mean + 1e-10)
         frame_flatness[i] = res
-
 
     mean = np.mean(frame_flatness) * 100
 

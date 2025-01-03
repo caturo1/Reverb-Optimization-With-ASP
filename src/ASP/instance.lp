@@ -2,12 +2,14 @@
 % 0-1 mapped to 0-100 and vice versa
 #const max = 95.
 #const min = 5.
-#const step = 5.
+#const small_step = 5.
+#const medium_step = 10.
+#const large_step = 15.
 
-{size(R)} :- R = min..max, R \ step = 0.
-{damping(D)} :- D = min..max, D \ step = 0.
-{wet_level(W)} :- W = min..100, W \ step = 0.
-{spread(S)} :- S = 10..max, S \ step = 0.
+size(R) :- R = min..max, R \ large_step = 0.
+damping(D) :- D = min..max, D \ medium_step = 0.
+wet_level(W) :- W = min..100, W \ small_step = 0.
+spread(S) :- S = 10..max, S \ medium_step = 0.
 
 % our analyzed features and respective ranges
 % features related to energy contained in the signal
@@ -23,4 +25,13 @@
 % features related to spectral image
 % spectral_centroid(0..20_000)
 % spectral flatness ()
-% spectral_spread(0.20_000)
+
+rms(26).
+rms_channel_balance(0).
+dr(77).
+density_population(598).
+mid(50).
+side(0).
+spectral_centroid(9207).
+spectral_flatness(42).
+spectral_spread(140).
