@@ -1,8 +1,7 @@
-# Byte-compiled / optimized / DLL files
+# Byte-compiled 
 __pycache__/
 *.py[cod]
 
 # Ignore specific spectral analysis file
 src/feature_extraction/spectral_analysis.py
 src/ASP/instance.lp
-processed_data

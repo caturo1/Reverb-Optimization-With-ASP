@@ -3,8 +3,8 @@ import os
 import numpy as np
 from timeit import default_timer as timer
 from textwrap import dedent
-import src.application.reverbPropagator as REVProp
-from src.feature_extraction import InputFeatures, load_audio
+from . import reverbPropagator as REVProp
+from ..feature_extraction import InputFeatures, load_audio
 from typing import Sequence
 from clingo.application import Application, clingo_main, Flag
 from clingo.control import Control
@@ -14,7 +14,10 @@ class ReverbOptimizer(Application):
     Reverb Optimization Application.
     The application takes the name of the audio in question as input.
 
+    Warning: The system is designed to only process clean (unrevebrated) audio
+
     Set "--dynamic" flag to dynamically insert artifact nogoods
+    Set "--display" flag to get additional system information
     """
     
     program_name: str = "Reverb Optimization System"
@@ -31,13 +34,28 @@ class ReverbOptimizer(Application):
         self.answer_sets                            = []
         self.__dynamic                              = Flag(False)
         self.__base_content                         = ""
+        # model number only changed here, so propagator works on the correct version
+        self.__model_number                         = 1
         
         # initiate the directory for the processed audio
         self.output_dir: str = os.path.join(
             os.path.dirname(
                 os.path.abspath(__file__)), 
                 '..\..\processed_data')
-        os.makedirs(self.output_dir, exist_ok=True)
+
+    def dir_setup(self):
+        """
+        Set up directory for output files
+        """
+
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir, exist_ok=True)
+            if self.__display:
+                print("Output directory created.")
+        else:
+            if self.__display:
+                print("Output directory already exists.")
+
 
     def __parse_audio_file(self, value):
         """
@@ -78,7 +96,7 @@ class ReverbOptimizer(Application):
         Read input and internally analyze features and create instance file
         
         Parameters:
-        ----------
+        -----------
             sample: Path to the input audio
         """
         try: 
@@ -101,8 +119,8 @@ class ReverbOptimizer(Application):
 
         try:
             with open(instance_file_path) as f:
-                for line in f:
-                    self.__base_content += line
+                    self.__base_content = f.read()
+    
         except IOError as e:
             print(f"Input error {e}")
             sys.exit(1)
@@ -127,11 +145,10 @@ class ReverbOptimizer(Application):
         ctl: control handle
         files: list of files, namely the encoding and instances
         """
+        self.dir_setup()
         start = timer()
         ## Determine file path for reverbrated audio
         input_basename = os.path.basename(self.__audio_file)
-        output_filename = f"processed_{input_basename}"
-        output_path = os.path.join(self.output_dir, output_filename)
         
         ## 1) Read input, analyze features, create instance
         if self.__display:
@@ -156,20 +173,28 @@ class ReverbOptimizer(Application):
         el2 = s3 - s2
 
         ## 4) Register Propagator and solve according to its logic
-        ctl.register_propagator(REVProp(display=self.__display,
-                                        output_file_path=output_path,
+        propagator = REVProp.reverbPropagator(display=self.__display,
+                                        model_n=self.__model_number,
+                                        input_name=input_basename,
                                         input_path=self.__audio_file,
+                                        output_dir=self.output_dir,
                                         input_features=self.__input_features,
                                         n_frames=self.__input_features.mel_left.shape[1],
-                                        dynamics=self.__dynamic))
+                                        dynamics=self.__dynamic)
+        ctl.register_propagator(propagator)
         
         with ctl.solve(yield_=True) as hnd:
+            
             for model in hnd:
                 atoms_list = model.symbols(shown=True)
                 self.answer_sets.append(atoms_list)
-        checks_t, analyze_t, read_t, reverb_t = REVProp.get_time_features()
+                print("\n SATISFIABLE \n")
+                propagator.model_number += 1
+            
+            self.reset(self.__input_features.instance_file_path)
 
-        self.reset(self.__input_features.instance_file_path)
+        checks_t, analyze_t, read_t, reverb_t = REVProp.reverbPropagator.get_time_features()
+
         
         end = timer()
         overall_t = end - start
@@ -183,7 +208,8 @@ class ReverbOptimizer(Application):
                   f"Applying reverb: {reverb_t}\n"
                   f"Overall runtime: {overall_t}\n"
                   f"Solving time see clingo stats.")
-                
-
+            
 if __name__ == "__main__":
+    import warnings
+    warnings.warn("use 'python -m application' not 'python -m application.ReverbOptimizer'", DeprecationWarning)
     sys.exit(int(clingo_main(ReverbOptimizer(), sys.argv[1:])))
