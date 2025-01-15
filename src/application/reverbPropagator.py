@@ -221,7 +221,7 @@ class reverbPropagator:
         We will later compare the length of nogoods between this and bulkcheck,
         therefore just at literals if they aren't contained in the nogood list yet.
         """
-        
+
         flag = False
         artifact = {
             'b2m': (artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
@@ -278,8 +278,7 @@ class reverbPropagator:
                 handle_artifacts(
                     condition="ringing"
                 )
-
-
+                
         return flag
 
 
@@ -302,6 +301,7 @@ class reverbPropagator:
         parameters = {}
         nogood   = []
         
+        #--> fix global issue, since if Optimizer runs for long sessions, they will accumulate over multiple instances
         global GLOBAL_READ
         global GLOBAL_ANALYZE
         global GLOBAL_CHECKS

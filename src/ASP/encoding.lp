@@ -56,6 +56,7 @@
 % Set spread-related parameters
 % Roughly, if we have a mono/quite mono signal, we want higher spread parameters
 % If we already have a spread input audio, the spread of the reverb should be small
+
 :- mid(M), side(X), selected_spread(Y), X > M, Y > 30.
 :- mid(M), side(X), selected_spread(Y), U = X + 10, M > U, Y < 40.
 :- mid(M), side(X), selected_spread(Y), M + X > 80, Y > 60, Y < 15.
@@ -63,7 +64,7 @@
 
 % weak constraints
 %:~ selected_size(R), selected_wet(W), R > 80, W > 80. [1@1, R]
-% if we have small size(room) and wet, we want to penalize wet  to at least hear sth
+% if we have small size(room) and wet, we want to penalize wet to at least hear sth
 % :~ selected_size(R), selected_wet(W), W > 50. [1@1, R]
 
 #show selected_size/1.

@@ -25,13 +25,3 @@ spread(S) :- S = 10..max, S \ medium_step = 0.
 % features related to spectral image
 % spectral_centroid(0..20_000)
 % spectral flatness ()
-
-rms(26).
-rms_channel_balance(0).
-dr(77).
-density_population(598).
-mid(50).
-side(0).
-spectral_centroid(9207).
-spectral_flatness(42).
-spectral_spread(140).
