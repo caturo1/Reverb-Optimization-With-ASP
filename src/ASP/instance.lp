@@ -9,7 +9,7 @@
 size(R) :- R = min..max, R \ large_step = 0.
 damping(D) :- D = min..max, D \ medium_step = 0.
 wet_level(W) :- W = min..100, W \ small_step = 0.
-spread(S) :- S = 10..max, S \ medium_step = 0.
+spread(S) :- S = 0..max, S \ medium_step = 0.
 
 % our analyzed features and respective ranges
 % features related to energy contained in the signal

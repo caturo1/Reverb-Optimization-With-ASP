@@ -1,6 +1,6 @@
 import sys
 import os
-import numpy as np
+import json
 from timeit import default_timer as timer
 from textwrap import dedent
 from . import reverbPropagator as REVProp
@@ -208,7 +208,24 @@ class ReverbOptimizer(Application):
                   f"Applying reverb: {reverb_t}\n"
                   f"Overall runtime: {overall_t}\n"
                   f"Solving time see clingo stats.")
-            
+        
+        solving_choices = ctl.statistics['solving']['solvers']['choices']
+        solving_conflicts = ctl.statistics['solving']['solvers']['conflicts']
+        solving_rules = ctl.statistics['problem']['lp']['rules']
+        constraints_stats = ctl.statistics['problem']['generator']['constraints']
+        time_stats = ctl.statistics['summary']['times']
+
+        stats_output = {
+            'choices': solving_choices,
+            'conflicts': solving_conflicts,
+            'constraints': constraints_stats,
+            'time': time_stats,
+            'rules': solving_rules
+        }
+
+        with open('stats.json', 'w') as f:
+            json.dump(obj=stats_output, fp=f, sort_keys=True, indent=4)
+    
 if __name__ == "__main__":
     import warnings
     warnings.warn("use 'python -m application' not 'python -m application.ReverbOptimizer'", DeprecationWarning)

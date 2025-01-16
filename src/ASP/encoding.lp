@@ -57,6 +57,7 @@
 % Roughly, if we have a mono/quite mono signal, we want higher spread parameters
 % If we already have a spread input audio, the spread of the reverb should be small
 
+selected_spread(0) :- side(0).
 :- mid(M), side(X), selected_spread(Y), X > M, Y > 30.
 :- mid(M), side(X), selected_spread(Y), U = X + 10, M > U, Y < 40.
 :- mid(M), side(X), selected_spread(Y), M + X > 80, Y > 60, Y < 15.

@@ -1,0 +1,31 @@
+What do we measure?
+    Solving time/ search space for different audio varying
+    * time domain
+    * frequency domain
+    * character
+    * mono vs. stereo
+    to look at time scaling for input length. 
+    We will look in clingo at:
+        Choice
+        Conflicts
+        Constraints
+        Rules 
+        Time stats (cpu, solving)
+
+What do I have to do?
+    Search for interesting, reproducable, objective audio
+    and setting that give us valuable insights into ASP
+
+Which specs do I have to clarify?
+    * environment
+    * cpu
+    * ram 
+    with at least 3 runs on the same machine and different machine
+
+This will give us:
+    How solving time scales with signal complexity
+    How the search space grows
+    How many solutions are found
+    How problem size changes
+    Performance bottlenecks
+
