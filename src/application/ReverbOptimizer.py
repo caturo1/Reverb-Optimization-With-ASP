@@ -224,7 +224,8 @@ class ReverbOptimizer(Application):
         }
 
         with open('stats.json', 'w') as f:
-            json.dump(obj=stats_output, fp=f, sort_keys=True, indent=4)
+            json.dump(stats_output, f, indent=4)
+
     
 if __name__ == "__main__":
     import warnings
