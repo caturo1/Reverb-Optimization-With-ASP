@@ -23,7 +23,7 @@ Which specs do I have to clarify?
     with at least 3 runs on the same machine and different machine
 
 This will give us:
-    How solving time scales with signal complexity
+    How solving time scales with signal complexity and signal length
     How the search space grows
     How many solutions are found
     How problem size changes

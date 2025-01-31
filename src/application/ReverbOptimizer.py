@@ -214,6 +214,7 @@ class ReverbOptimizer(Application):
         solving_rules = ctl.statistics['problem']['lp']['rules']
         constraints_stats = ctl.statistics['problem']['generator']['constraints']
         time_stats = ctl.statistics['summary']['times']
+        # total time - solving time
 
         stats_output = {
             'choices': solving_choices,
