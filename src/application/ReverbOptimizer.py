@@ -1,13 +1,13 @@
-import sys
 import os
+import sys
 import json
-from timeit import default_timer as timer
 from textwrap import dedent
+from typing import Sequence
+from clingo.control import Control
+from timeit import default_timer as timer
 from . import reverbPropagator as REVProp
 from ..feature_extraction import InputFeatures, load_audio
-from typing import Sequence
 from clingo.application import Application, clingo_main, Flag
-from clingo.control import Control
 
 class ReverbOptimizer(Application):
     """
@@ -62,6 +62,7 @@ class ReverbOptimizer(Application):
         Parse argument string
         """
         self.__audio_file = os.path.join(self.__audio_file, value)
+        print(self.__audio_file)
         return True if isinstance(value, str) else False
 
     def register_options(self, options):
@@ -220,11 +221,15 @@ class ReverbOptimizer(Application):
             'choices': solving_choices,
             'conflicts': solving_conflicts,
             'constraints': constraints_stats,
-            'time': time_stats,
+            'time_total': time_stats['total'],
+            'time_cpu': time_stats['cpu'],
+            'time_solve': time_stats['solve'],
+            'time_unsat': time_stats['unsat'],
+            'time_sat': time_stats['sat'],
             'rules': solving_rules
         }
 
-        with open('stats.json', 'w') as f:
+        with open('clingo_stats.json', 'w') as f:
             json.dump(stats_output, f, indent=4)
 
     
