@@ -29,3 +29,12 @@ This will give us:
     How problem size changes
     Performance bottlenecks
 
+
+Simple and Complex in isolation:
+* duration vs time solving 
+* amp vs time solving
+
+Decide on how to implement the iteration:
+    - iterate over frequencies in durations or vice versa?
+    - iterate over durations in amps or vice versa? (probably best -> We have to seperate frequencies)
+    - iterate over frequencies in amps or vice versa?

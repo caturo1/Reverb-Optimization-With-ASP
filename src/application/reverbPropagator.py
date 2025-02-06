@@ -40,7 +40,7 @@ class reverbPropagator:
         self.model_number           = model_n
         self.__artifact_thresholds  = {
             "clipping" : {
-                "thresh" : 0.6,
+                "thresh" : 0.7,
                 "count" : 4,
                 "adjustment" : 1.1
             },
@@ -78,7 +78,8 @@ class reverbPropagator:
         self.__input_path           = input_path
         self.__states               = {} ## Use a list to preserve states
         self.__symbols              = {}
-        self.__display              = display
+        # set __display back to = display (just for benchmark True)
+        self.__display              = True
         self.__dynamic              = dynamics
         # we need this to map solver literals back to parameter values
         self.__parameters           = {}

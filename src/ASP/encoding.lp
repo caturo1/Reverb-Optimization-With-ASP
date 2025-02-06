@@ -18,9 +18,9 @@
 :- selected_wet(W), selected_damp(D), W > 60, D < 45.
 
 % Set damp-related setting
-:- selected_damp(D), spectral_centroid(C), C < 500, D > 25.
-:- selected_damp(D), spectral_centroid(C), C > 4000, D < 50.
-:- selected_damp(D), spectral_centroid(C), spectral_spread(S), C > 1000, S > 200, D < 30.
+:- spectral_centroid(C), selected_damp(D), C < 150, D > 25.
+:- spectral_centroid(C), selected_damp(D), C > 4000, D < 50.
+:- spectral_centroid(C), selected_damp(D), spectral_spread(S), C > 1000, S > 200, D < 30.
 :- spectral_centroid(C), spectral_spread(P), selected_size(S), C < 600, P > 1000, S > 45.
 
 :- spectral_centroid(C), 
@@ -36,12 +36,12 @@
 
 % Set constraints on energy (density, rms, rms difference between channels) across channels
 :- density_population(P), selected_size(R), selected_wet(W), P < 400, R < 30, W < 20.
-:- density_population(P), selected_size(R), P > 3500, R > 55.
+:- density_population(P), selected_size(R), P > 6000, R > 55.
 %:- density_population(P), selected_damp(D), D > 80, P < 2500.
 :- density_population(P), 
    selected_wet(W), 
    selected_damp(D), 
-   P > 3500, W > 60, D < 40.
+   P > 5000, W > 60, D < 40.
 
 :- dr(D), selected_size(R), selected_wet(W), D < 30, R > 60, W > 25.
 % conflict for 95 dynamic range, why is my wet only 5? This is very odd

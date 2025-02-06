@@ -1,10 +1,9 @@
 #!/bin/bash -
 
 MAX_DURATION=10
-MAX_FREQ=2000
+MAX_FREQ=10000
 current=110
-N_RUNS=20
-PI=3.141
+#N_RUNS=20
 
 # set up the directory structure
 BASE_DIR="."  # Add this to make paths clearer
@@ -40,6 +39,8 @@ do
 
 done
 
+echo "Cleaning warmup files..."
+
 rm "$RESULT_DIR"/audio_test*.json
 rm "$SIGNAL_DIR"/warmup*.wav
 #rm "$RESULT_DIR_CLINGO"/*.json
@@ -47,10 +48,19 @@ rm "$SIGNAL_DIR"/warmup*.wav
 
 # Main benchmark
 # using a simple waveform (no FM synthesis)
-mode="True"
+mode=0
 loop=1
+duration=1
+i=1
 
-while (($loop==1))
+# we can iterate over different specified amplitude ranges
+# to explore the impact of amplitude values.
+# if we provide amp values, we do it in thousands, since we will convert that to floats
+# because bash only works with integers and not floats
+
+# we can swap the max frequency check again the upper bound of amplitude
+
+while (($duration < MAX_DURATION && $current < MAX_FREQ)) 
 do
     freq=$(($current * 2))
 
@@ -68,7 +78,8 @@ do
         -mf=$mf \
         -md=$md \
         -n="$name" \
-        -r=$i
+        -r=$i \
+        -m=$mode \
     
     sed -i '$d' "$RESULT_DIR/audio_test_${i}.json"
     sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${i}.json"
@@ -78,20 +89,23 @@ do
     
     # Append the clingo stats to the audio stats
     sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${i}.json"
-
-    $current=$freq
-    
-    if (($current > 4000)):
-        loop=0
-
+    mv "$RESULT_DIR/audio_test_${i}.json" "$RESULT_DIR/audio_test_${i}_model_${mode}.json"
+    current=$freq
+    i=$((i+1))
+    duration=$(($duration * 2))
 done
 
+
 # using a complex signal (FM)
-mode="complex"
-for ((i=1; i<=$N_RUNS; i++))
+mode=1
+loop=1
+duration=1
+i=1
+
+while (($duration < $MAX_DURATION && $current < MAX_FREQ)) 
 do
     freq=$(($current * 2))
-    
+
     #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
     mf=$freq
     md=$i
@@ -106,8 +120,9 @@ do
         -mf=$mf \
         -md=$md \
         -n="$name" \
-        -r=$i
-    
+        -r=$i \
+        -m=$mode \
+
     sed -i '$d' "$RESULT_DIR/audio_test_${i}.json"
     sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${i}.json"
 
@@ -116,9 +131,10 @@ do
     
     # Append the clingo stats to the audio stats
     sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${i}.json"
-
-    $current=$freq 
-
+    mv "$RESULT_DIR/audio_test_${i}.json" "$RESULT_DIR/audio_test_${i}_model_${mode}.json"
+    current=$freq
+    i=$((i+1))
+    duration=$(($duration * 2))
 done
 
 # Analysis
