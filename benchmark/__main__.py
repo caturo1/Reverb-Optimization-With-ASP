@@ -459,7 +459,7 @@ def main(argv):
     #modulating freq: preferably low (<0.2) values for refined frequency variations
     mf = args.modFreq / 100
     #modulation depth: higher values for stronger carrier modulation
-    md = args.modDepth / 100
+    md = args.modDepth / 10
     name = args.name
     mode = args.mode
     #name = f"test_{frequency}Hz_{duration}s_{phase_offset}offset_{n_run}_run"
@@ -470,7 +470,8 @@ def main(argv):
         'phase_offset' : float(deg), # convert, because numpy float gave me some problems
         'modulating_frequency' : mf,
         'modulation_index' : md,
-        'max_amplitude' : max(dr),
+        'max_amplitude' : float(max(dr)),
+        'dynamic_range' : float(max(dr) - min(dr)),
         'singal_complexity' : mode,
     }
 
