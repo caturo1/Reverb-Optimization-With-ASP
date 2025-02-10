@@ -51,29 +51,37 @@ with pd.option_context('display.max_rows', None, 'display.max_columns', None):
     print(df_fin_1)
 
 # duration vs time_solve
-plt.subplot(2,4,1)
-sns.scatterplot(data=df_fin_0, x='frequency', y='time_solve')
-plt.title('duration vs time_solve')
+plt.subplot(2,3,1)
+sns.scatterplot(data=df_fin_0, x='max_amplitude', y='time_solve')
+plt.title('amplitude vs time_solve; model=0')
 
 # frequency vs conflicts 
-plt.subplot(2,4,2)
+plt.subplot(2,3,3)
 sns.scatterplot(data=df_fin_0, x='duration', y='time_solve')
-plt.title('frequency vs conflicts')
+plt.title('duration vs time_solve; model=0')
 
 # duration vs rules
-plt.subplot(2,4,3)
-sns.scatterplot(data=df_fin_0, x='max_amplitude', y='time_solve')
-plt.title('duration vs rules')
+plt.subplot(2,3,2)
+sns.scatterplot(data=df_fin_1, x='max_amplitude', y='time_solve')
+plt.title('amplitude vs time_solve; model=1')
+
+plt.subplot(2,3,4)
+sns.scatterplot(data=df_fin_1, x='duration', y='time_solve')
+plt.title('duration vs time_solve; model=1')
+
+plt.subplot(2,3,5)
+sns.scatterplot(data=df_fin_0, x='dynamic_range', y='time_solve')
+plt.title('dynamic_range vs time_solve; model=0')
+
+plt.subplot(2,3,6)
+sns.scatterplot(data=df_fin_1, x='dynamic_range', y='time_solve')
+plt.title('dynamic_range vs time_solve; model=1')
 
 """# frequency vs choices
 plt.subplot(2,4,4)
 sns.scatterplot(data=df_fin_0, x='frequency', y='time_solve')
 plt.title('frequency vs choices')
-"""
 # modulation_index vs choices
-plt.subplot(2,4,5)
-sns.scatterplot(data=df_fin_1, x='frequency', y='time_solve')
-plt.title('modulation_index vs choices')
 
 # modulation_index vs time_solve
 plt.subplot(2,4,6)
@@ -89,6 +97,7 @@ plt.title('phase_offset vs time_sat')
 plt.subplot(2,4,8)
 sns.scatterplot(data=df_fin_1, x='modulation_index', y='time_solve')
 plt.title('duration vs rules')
+"""
 
 plt.tight_layout()
 plt.show()

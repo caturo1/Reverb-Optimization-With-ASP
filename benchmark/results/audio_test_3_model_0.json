@@ -1,0 +1,19 @@
+{
+    "frequency": 440,
+    "duration": 1,
+    "phase_offset": 59.99999999999999,
+    "modulating_frequency": 4.4,
+    "modulation_index": 0.1,
+    "max_amplitude": 0.5,
+    "dynamic_range": 1.0,
+    "singal_complexity": true,
+    "choices": 223.0,
+    "conflicts": 79.0,
+    "constraints": 7.0,
+    "time_total": 4.88557243347168,
+    "time_cpu": 7.71875,
+    "time_solve": 4.048681259155273,
+    "time_unsat": 0.0,
+    "time_sat": 4.048179626464844,
+    "rules": 121.0
+}

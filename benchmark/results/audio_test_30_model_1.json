@@ -1,4 +1,12 @@
 {
+    "frequency": 440,
+    "duration": 9,
+    "phase_offset": 6.0,
+    "modulating_frequency": 4.4,
+    "modulation_index": 0.9,
+    "max_amplitude": 0.5,
+    "dynamic_range": 1.0,
+    "singal_complexity": true,
     "choices": 35.0,
     "conflicts": 0.0,
     "constraints": 7.0,

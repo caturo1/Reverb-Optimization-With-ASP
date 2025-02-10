@@ -62,7 +62,7 @@ mode=0
 loop=1
 # we can swap the max frequency check again the upper bound of amplitude
 
-for duration in $(seq 1 10 2)
+for duration in $(seq 1 2 10)
 do
     for amp in "${AMPLITUDES[@]}"
     do
@@ -105,7 +105,7 @@ done
 mode=1
 loop=1
 
-for duration in $(seq 1 10 2)
+for duration in $(seq 1 2 10)
 do
     for amp in "${AMPLITUDES[@]}"
     do
