@@ -363,13 +363,19 @@ class SignalGenerator:
         if not (-self.MAX_PHASE_OFFSET < phase_offset < self.MAX_PHASE_OFFSET):
             phase_offset = random.uniform(-self.MAX_PHASE_OFFSET, self.MAX_PHASE_OFFSET)
         
+        amplitude = random.uniform(dyn_range[0], dyn_range[1])
+        drip = 0.2
+
         for _ in range(int(duration)):
-            amplitude = random.uniform(dyn_range[0], dyn_range[1])
             signal_0_n = amplitude * np.sin(2 * np.pi * frequency * time)
             signal_1_n = amplitude * np.sin(2 * np.pi * frequency * time + phase_offset)
             
             signal_0.append(signal_0_n)
             signal_1.append(signal_1_n)
+
+            lower_bound = amplitude - drip if amplitude <= 0.7 else amplitude
+            upper_bound = amplitude + drip if amplitude >= -0.7 else amplitude
+            amplitude = random.uniform(lower_bound, upper_bound)
         
         signal_0 = np.array(signal_0).flatten()
         signal_1 = np.array(signal_1).flatten()
@@ -453,33 +459,23 @@ def main(argv):
     # parse dynamic range, keeping in mind, that bash only uses integer calculations
     dr = args.dynamicRange
     print(dr)
-    phase_offset = np.pi / float(n_run)
+    phase_offset = SignalGenerator.MAX_PHASE_OFFSET / float(n_run)
     #convert radians to degree for clarity in stats
     deg = phase_offset * (180 / np.pi)
     #modulating freq: preferably low (<0.2) values for refined frequency variations
-    mf = args.modFreq / 100
+    mf = args.modFreq / 1000
     #modulation depth: higher values for stronger carrier modulation
     md = args.modDepth / 10
     name = args.name
     mode = args.mode
     #name = f"test_{frequency}Hz_{duration}s_{phase_offset}offset_{n_run}_run"
-    
-    stats = {
-        'frequency' : frequency,
-        'duration' : duration,
-        'phase_offset' : float(deg), # convert, because numpy float gave me some problems
-        'modulating_frequency' : mf,
-        'modulation_index' : md,
-        'max_amplitude' : float(max(dr)),
-        'dynamic_range' : float(max(dr) - min(dr)),
-        'singal_complexity' : mode,
-    }
+    print(bool(mode))
 
     result_dir = Path("./benchmark/results")
     # also taken care of in the batch script
     result_dir.mkdir(parents=True, exist_ok=True)
 
-    generator.generate_signal(
+    sig, _ = generator.generate_signal(
         name=name,
         amplitude=dr,
         frequency=frequency,
@@ -489,6 +485,23 @@ def main(argv):
         mod_depth=md,
         complex=bool(mode)
     )
+    
+    flattened_signal = np.ravel(a=sig,order="C")
+    max_amp = np.amax(flattened_signal)
+    min_amp = np.amin(flattened_signal)
+    av_amp = np.mean(np.absolute(flattened_signal))
+    dyn_r = max_amp - min_amp
+
+    stats = {
+        'frequency' : frequency,
+        'duration' : duration,
+        'phase_offset' : float(deg), # convert, because numpy float gave me some problems
+        'modulating_frequency' : mf,
+        'modulation_index' : md,
+        'av_amplitude' : float(av_amp),
+        'dynamic_range' : float(dyn_r),
+        'singal_complexity' : mode,
+    }
 
     json_path = result_dir / f"audio_test_{n_run}.json"
     with open(json_path, 'w') as f:  # Note the 'w' mode for writing

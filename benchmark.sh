@@ -42,9 +42,9 @@ do
         -md=1 \
         -n="warmup$i" \
         -dr="(-0.5,0.5)" \
-        -r=$i
+        -r=$i > /dev/null
     
-    python -m src.application --audio-file="testing/warmup$i.wav"
+    python -m src.application --audio-file="testing/warmup$i.wav" > /dev/null
     rm ./clingo_stats.json
 
 done
@@ -53,94 +53,103 @@ echo "Cleaning warmup files..."
 
 rm "$RESULT_DIR"/audio_test*.json
 rm "$SIGNAL_DIR"/warmup*.wav
+rm "$BASE_DIR"/processed_data/v1*.wav
 #rm "$RESULT_DIR_CLINGO"/*.json
 #rm "$RESULT_DIR_SIGNALS"/*.json
 
 # Main benchmark
 # using a simple waveform (no FM synthesis)
-mode=0
-loop=1
 # we can swap the max frequency check again the upper bound of amplitude
-
-for duration in $(seq 1 2 10)
+for u in {1..10}
 do
-    for amp in "${AMPLITUDES[@]}"
+echo "start run number $u"
+    mode=0
+    loop=1
+    for duration in $(seq 1 2 10)
     do
-        #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
-        frequency=440
-        mf=$frequency
-        md=$duration
-        name="${mode}_${amp}Hz_${duration}s_${loop}run"
-        
-        echo $name
-        echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
-        
-        # Generate signal
-        python -m benchmark \
-            -f=$frequency \
-            -d=$duration \
-            -mf=$mf \
-            -md=$md \
-            -n="$name" \
-            -r=$loop \
-            -m=$mode \
-        
-        sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
-        sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
+        for amp in "${AMPLITUDES[@]}"
+        do
+            #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
+            frequency=440
+            mf=$frequency
+            md=$duration
+            name="${mode}_${amp}Hz_${duration}s_${loop}run"
+            
+            #echo $name
+            #echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
+            
+            # Generate signal
+            python -m benchmark \
+                -f=$frequency \
+                -d=$duration \
+                -mf=$mf \
+                -md=$md \
+                -n="$name" \
+                -r=$loop > /dev/null
+            
+            sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
+            sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
 
-        # Process with application
-        python -m src.application --audio-file="testing/${name}.wav" > /dev/null
-        
-        # Append the clingo stats to the audio stats
-        sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
-        mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
+            # Process with application
+            python -m src.application --audio-file="testing/${name}.wav" > /dev/null
+            
+            # Append the clingo stats to the audio stats
+            sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
+            mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
 
-        loop=$(($loop + 1))
-        echo $loop
+            loop=$(($loop + 1))
+        done
     done
-done
 
 
-# using a complex signal (FM)
-mode=1
-loop=1
+    # using a complex signal (FM)
+    mode=1
+    loop=1
 
-for duration in $(seq 1 2 10)
-do
-    for amp in "${AMPLITUDES[@]}"
+    for duration in $(seq 1 2 10)
     do
-        #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
-        frequency=440
-        mf=$frequency
-        md=$duration
-        name="${mode}_${amp}Hz_${duration}s_${loop}run"
-        
-        echo $name
-        echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
-        
-        # Generate signal
-        python -m benchmark \
-            -f=$frequency \
-            -d=$duration \
-            -mf=$mf \
-            -md=$md \
-            -n="$name" \
-            -r=$loop \
-            -m=$mode \
-        
-        sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
-        sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
+        for amp in "${AMPLITUDES[@]}"
+        do
+            #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
+            frequency=440
+            mf=$frequency
+            md=$duration
+            name="${mode}_${amp}Hz_${duration}s_${loop}run"
+            
+            #echo $name
+            #echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
+            
+            # Generate signal
+            python -m benchmark \
+                -f=$frequency \
+                -d=$duration \
+                -mf=$mf \
+                -md=$md \
+                -n="$name" \
+                -r=$loop \
+                -m=$mode > /dev/null
+            
+            sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
+            sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
 
-        # Process with application
-        python -m src.application --audio-file="testing/${name}.wav" > /dev/null
-        
-        # Append the clingo stats to the audio stats
-        sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
-        mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
+            # Process with application
+            python -m src.application --audio-file="testing/${name}.wav" > /dev/null
+            
+            # Append the clingo stats to the audio stats
+            sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
+            mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
 
-        loop=$(($loop + 1))
+            loop=$(($loop + 1))
+        done
     done
-done
+    # Analysis
+    echo "Printing the $u . analyzer plot"
+    python ./benchmark/analyze_results.py $u
 
-# Analysis
-python ./benchmark/analyze_results.py
+    echo "Clearing directories"
+    # clean directories before next run
+    rm "$RESULT_DIR"/audio_test*.json
+    rm "$SIGNAL_DIR"/*run.wav
+    rm "$BASE_DIR"/processed_data/*run.wav
+
+done

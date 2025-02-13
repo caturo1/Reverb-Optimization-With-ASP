@@ -1,11 +1,11 @@
 {
-    "choices": 35.0,
+    "choices": 32.0,
     "conflicts": 0.0,
     "constraints": 7.0,
-    "time_total": 1.246957778930664,
-    "time_cpu": 1.3125,
-    "time_solve": 0.263885498046875,
+    "time_total": 1.3674602508544922,
+    "time_cpu": 1.59375,
+    "time_solve": 0.2515983581542969,
     "time_unsat": 0.0,
-    "time_sat": 0.263885498046875,
-    "rules": 121.0
+    "time_sat": 0.2515983581542969,
+    "rules": 146.0
 }
