@@ -349,12 +349,17 @@ def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
 
 def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     """
-    Sound event (Ringing) analyzer.
+    Sound event (ringing) analyzer. In some way this correlates with the "coloredness" of a reverb
+    as it is defined as in "that their outputs impose some conspicuous audible 
+    resonances upon the input signal." [Effect Design* 1: Reverberator and Other Filters JON DATTORR]
     
     Trying to detect ringing by analyzing the occurence of peaks in similar frequencies
     over consecutive frames.
     We define surrounding areas/windows, for relevance and return the maximum
-    for differential analysis.
+    for differential analysis. Since this is a differential analysis, it analyzes the resonances,
+    our reverb induces and thus in some way, how the reverb colors the input.
+    Since a coloring of the signal is not desired, and persisting resonances in the output signal are not
+    desired, this is concidered an artifact.
 
     Parameters:
     -----------
