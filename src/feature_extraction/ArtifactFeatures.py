@@ -9,24 +9,22 @@ class ArtifactFeatures:
     """
 
     def __init__(self, 
-                 y: np.ndarray, 
-                 mel_l_org: np.ndarray,
-                 mel_r_org: np.ndarray): 
+                y_org: np.ndarray, 
+                y_proc: np.ndarray,
+                mel_l_org: np.ndarray,
+                mel_r_org: np.ndarray,
+                filter_bank_num_low: list,
+                filter_bank_num_mid: list): 
         
         # to save computation, store spectrogram
-        self.mel_left,self.mel_right = ia.compute_STFT(y, mode="mel")
+        self.mel_left,self.mel_right = ia.compute_STFT(y_proc, mode="mel")
 
-        self.clipping_l = aa.clipping_analyzer(y[0])
-        self.clipping_r = aa.clipping_analyzer(y[1])
+        self.clipping_l = aa.clipping_analyzer(y_proc[0])
+        self.clipping_r = aa.clipping_analyzer(y_proc[1])
 
         # for differntial analysis and both cahnnels
-        bass_to_mid_ratio_l = aa.muddiness_analyzation(mel_S=self.mel_left, mel_org=mel_l_org)
-        bass_to_mid_ratio_r = aa.muddiness_analyzation(mel_S=self.mel_right, mel_org=mel_r_org)
-
-        self.b2mR_L = bass_to_mid_ratio_l
-        self.b2mR_R = bass_to_mid_ratio_r
-        
-        self.cc = aa.cross_correlation(y)
+        self.b2mR = aa.muddiness_analyzer(y_org=y_org, y_proc=y_proc, filter_bank_num_low=filter_bank_num_low, filter_bank_num_mid=filter_bank_num_mid)
+        self.cc = aa.cross_correlation(y=y_proc)
 
         # differential analysis for both channels
         """
@@ -46,9 +44,9 @@ class ArtifactFeatures:
 
     def to_string(self):
         """
-        Just print the object to print
+        Just print the object toString
         """
-        print(f"Bass to mid: {self.b2mR_L, self.b2mR_R}\n"
+        print(f"Bass to mid: {self.b2mR}\n"
               f"clipping: {self.clipping_l, self.clipping_r}\n"
               f"Cross-correlation: {self.cc}\n"
               f"ringing: {self.ringing_l, self.ringing_r}")

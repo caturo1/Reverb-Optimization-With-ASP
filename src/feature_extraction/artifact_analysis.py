@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import signal
 from typing import Optional, Tuple
 import librosa
 
@@ -23,19 +24,17 @@ FREQ_BANDS = {
     }
 }
 
-"""
-There are still inconsistencies as to handling differential analysis in
-the function or in the ArtifactFeatures class. Soon to be resolved.
-"""
+
 
 def db_scaling(value) -> int:
-    """Scaling of dB related values according to bit-depth of the signal
+    """
+    Scaling of dB related values according to bit-depth of the signal
 
-    Args: 
+    Parameters:
         value: Input dB value
     
     Returns:
-        Integer scaled value on a scale of [0,100]
+        out: Integer scaled value on a scale of [0,100]
     """
     min = -20*np.log10(2**BIT_DEPTH)
     max = 0
@@ -50,7 +49,6 @@ def db_scaling(value) -> int:
 # and maybe use STFT and perceptual weighting instead of mel scale
 # since this might cluster to many frequencies into one bin
 # also, most methods work for one channel so either expand them to stereo input or apply them to each channel
-
 def clipping_analyzer(y: np.ndarray):
     """
     Detection of clipping in one channel of the signal based on 
@@ -60,19 +58,22 @@ def clipping_analyzer(y: np.ndarray):
     for ASP solving, but I thought a single clip isn't necessarily bad or a reason to solve again,
     but rather a certain clipping severity is.
     
-    Parameter:
-    - y: One channel of stereo audio on [-1,1]
+    Parameters:
+        y: One channel of stereo audio on [-1,1]
 
     Returns:
     Parameter indicating severity of clipping
     """
 
+    # calculate an appropriate number of bins according to the input signal
     sturgers = np.log2(1 - (-1)) + 1
 
     num_bins = max(301, sturgers)
 
+    # compute histogram
     amp_hist, _ = np.histogram(y, bins=num_bins)
-    
+
+    # initialize variables
     r_ptr = np.nonzero(amp_hist)[0][-1]
     l_ptr = np.nonzero(amp_hist)[0][0]
     current_r = amp_hist[r_ptr]
@@ -83,6 +84,7 @@ def clipping_analyzer(y: np.ndarray):
 
     denom = r_ptr - l_ptr
 
+    # iterate over histogram bins
     while (r_ptr > l_ptr):
 
         if (l_ptr >= len(amp_hist) or r_ptr < 0):
@@ -93,39 +95,103 @@ def clipping_analyzer(y: np.ndarray):
         y_r = amp_hist[r_ptr]
         y_l = amp_hist[l_ptr]
 
+        # reset distance if a higher bin is found
         if (y_r > current_r):
             current_r = y_r
             d_r = 0
+        # otherwise increment the distance
         else: d_r += 1
         
+        # same procedure for the left side
         if (y_l > current_l):
             current_l = y_l
             d_l = 0
         else : d_l += 1
 
+        # update fused distance value
         d_max = max(d_max, d_l, d_r)
     
+    # calculate final clipping score
     r_cl = 2*d_max / denom if denom > 0 else 0
 
     return r_cl
 
 
-# Check here again
-def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
+def muddiness_analyzer(
+                    y_proc: np.ndarray,
+                    y_org: np.ndarray,
+                    filter_bank_num_low: list,
+                    filter_bank_num_mid: list
+                    ):
     """
-    Approximation of perceived muddiness. To be compared to features of the original audio.
-    We could also try to calculate the spectral centroid and compare the shift in the centroid between original and processed audio.
-    We could also calculate the spectral rolloff to see if there are changes 85 (or so) percentile energy distributions in lower freqs
-
-    Not sure if melspectrum or perceptually weighted STFT is better. 
-    The latter has a better frequency resolution.
+    Apply the previously generated gammatone filterbank to the final audio.
+    Calculate the energy in distinct regions and perform differential analysis.
+    This approximates perceptual changes in low/mid frequencies in order to detect a perceptual surge 
+    of low energy that dangers the masking of mid/high content.
 
     Parameters:
-    ----------
-        mel_S: Mel Spectrogram of one channel
+        y_proc: Reverberated audio signal
+        y_org: Unreverberated audio signal
+        filter_bank_num_low: Transfer function coefficients for the gammatone filters of low end central frequencies
+        filter_bank_num_mid: Transfer function coefficients for the gammatone filters of mid central frequencies
+
+    Returns:
+        mud_score: Score, that approximates perceptual changes
+    """
     
-    Return:
-    -------
+    # Processing the mono signal is enough
+    y_mono_proc = (y_proc[0] + y_proc[1]) / 2.
+    y_mono_org = (y_org[0] + y_org[1]) / 2.
+
+    # run the input through the filter
+    bass_filtered_org = np.zeros_like(y_mono_org)
+    bass_filtered_proc = np.zeros_like(y_mono_proc)
+    mid_filtered_org = np.zeros_like(y_mono_org)
+    mid_filtered_proc = np.zeros_like(y_mono_proc)
+
+    for filter_coef in filter_bank_num_low:
+        bass_filtered_org += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_org)
+        bass_filtered_proc += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_proc)
+
+    for filter_coef in filter_bank_num_mid:
+        mid_filtered_org += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_org)
+        mid_filtered_proc += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_proc)
+
+    eps = 1e-10
+    to_dB = lambda p : 10 * np.log10(p)
+    # calculate and normalize values such as mean rms for comparative analysis
+    low_energy_org = to_dB(np.mean(librosa.feature.rms(y=bass_filtered_org, frame_length=NFFT, hop_length=HOPS)))
+    low_energy_proc = to_dB(np.mean(librosa.feature.rms(y=bass_filtered_proc, frame_length=NFFT, hop_length=HOPS)))
+    mid_energy_org = to_dB(np.mean(librosa.feature.rms(y=mid_filtered_org, frame_length=NFFT, hop_length=HOPS)))
+    mid_energy_proc = to_dB(np.mean(librosa.feature.rms(y=mid_filtered_proc, frame_length=NFFT, hop_length=HOPS)))
+    
+    total_org = low_energy_org + mid_energy_org + eps
+    total_proc = low_energy_proc + mid_energy_proc + eps
+    norm_org_low = low_energy_org / total_org
+    norm_org_mid = mid_energy_org / total_org
+    norm_proc_low = low_energy_proc / total_proc
+    norm_proc_mid = mid_energy_proc / total_proc
+
+    # compare energy distribution
+    b2m_org = norm_org_low / norm_org_mid
+    b2m_proc = norm_proc_low / norm_proc_mid
+
+    mud_score = b2m_org - b2m_proc
+    
+    return mud_score
+
+def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
+    """
+    Approximation of perceived muddiness by using mel-Spektrograms. 
+    To be compared to features of the original audio.
+    
+    This is a much more efficient, but not as mature approach.
+
+    Parameters:
+        mel_S: Mel Spectrogram of one channel ofthe processed audio
+        mel_org: Mel Spectrogram of one channel ofthe original audio
+    
+    Returns:
         bass_to_mid_ratio: For 16-bit audio roughly [0,96]
     """
 
@@ -154,13 +220,13 @@ def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
 # implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
     """
-    Calculation of cross correlation based on StereoProcessing paper.
+    Calculation of cross correlation based on StereoProcessing paper by RS-MET.
 
     Parameters:
-    y: 2D array with y[0] as left and y[1] as right channel
+        y: 2D array with y[0] as left and y[1] as right channel
     
-    Return:
-    correlation: In range of [-1,1]
+    Returns:
+        correlation: In range of [-1,1]
     """
 
     if (y is None or y.ndim != 2 or y.shape[1] == 0):
@@ -168,7 +234,6 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
 
     numerator = np.mean(y[0] * y[1])
     denom = np.sqrt((np.mean(y[0] ** 2) + np.mean(y[1] ** 2)) + 1e-10)
-    ## changed resulting values
     c = (numerator / denom)
 
     return c
@@ -180,23 +245,16 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
     and the spacing of the peaks in every frame
 
     Parameters:
-    -----------
         mel_dB: Magnitude to dB converted spectrogram of the input audio
 
-    Return:
-    -------
-        density: density measurement in relation to whole audio on [0,1]
+    Returns:
         peak_tracking: Matrix of size n_freqs x n_frames with count in respective position on [0,n_frames]
-        spacing: Array containing the frequency-dependent space between peaks in Hz on [0,19_980]
     """
     n_freqs, n_frames = mel_dB.shape
     freqs = librosa.mel_frequencies(n_mels=n_freqs, fmin=20, fmax=20_000)
 
-    peak_tracking = np.zeros((n_freqs, n_frames))
-    density = np.zeros(shape=n_frames, dtype=float)
-    spacing = np.full(shape=n_frames * (n_freqs-1), fill_value=np.nan)
-    
-    index = 0
+    peak_tracking = np.zeros((n_freqs, n_frames))    
+
     for frame_idx in range(n_frames):
         peaks = librosa.util.peak_pick(
             mel_dB[:,frame_idx], 
@@ -206,145 +264,10 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
             post_avg=5,
             delta=0.4,
             wait=10)
-
-        # this  gives me just how many peaks I gave per frame in relation to the whole audio
-        # I could expand this to the different frequency bands
-        density[frame_idx] = len(peaks) / n_frames
         
         peak_tracking[[peaks], frame_idx] = 1
-
-        if len(peaks) > 1:
-            diffs = np.diff(freqs[peaks])
-            upper = len(diffs)
-            spacing[index : index + upper] = diffs
-            index += upper
-    spacing = spacing[~np.isnan(spacing)]
     
-    return density, peak_tracking, spacing
-
-
-def spectral_density(mel_org: np.ndarray, mel_proc: np.ndarray) -> Tuple[int, int]:
-    """
-    Rough measurement of spectral density. 
-    The difference between the input and processed audio gives us a measurement about the extent of reverb we can apply
-    
-    Parameters:
-    -----------
-        S_org: STFT of the original audio
-        S_proc: STFT of the processed audio
-
-    Returns:
-    --------
-        density_stability: Desc in code; on scale of [0,1] with 0 as unstable
-        peak_density_difference: Accumulation of peaks on [-n_frames,n_frames]
-
-    """
-    n_frames = mel_proc.shape[1]
-
-    mel_dB_org = librosa.amplitude_to_db(mel_org)
-    mel_dB_proc = librosa.power_to_db(mel_proc)
-
-    spectral_density_org, _, _ = get_frame_peak_density_spacing(mel_dB=mel_dB_org)
-    spectral_density_proc, _, _ = get_frame_peak_density_spacing(mel_dB=mel_dB_proc)
-    
-    spectral_density_org = np.where(spectral_density_org != 0, spectral_density_org, 1e-10)
-    spectral_density_proc = np.where(spectral_density_proc != 0, spectral_density_proc, 1e-10)
-    
-    # measurement of how much the density remains stable between processing
-    ## density_ratio contains a deensity value per frame
-    ## density_ratio = 1 if both are the same
-    ## density_ratio > 1 if we introduced more peaks
-    ## density_ratio < 1 if we resolved peaks 
-    #ä (maybe we should include just positive values in the condition since removing peaks is not an artifact)
-    ## density_deriv contains only relevant frames
-    ## stability measures the extend for relevant (aka introduced) peaks
-    density_ratio = spectral_density_proc / spectral_density_org
-    cond = (density_ratio != 1) & ~np.isnan(density_ratio)
-    density_deriv = np.extract(cond, density_ratio)
-    density_stability = (1 - len(density_deriv) / n_frames)
-    
-    # measure to which extend the peak density accumulated or disappeared
-    ## combined contains the peak-count difference
-    ## peak_density_difference is positive if we introduced peaks
-    ## and relates it to the size of the audio
-    ## becuase 20 new peaks in a 1 s audio are a lot in a 1 minute audio not 
-    combined = spectral_density_proc - spectral_density_org
-    pos_derv = len(np.extract(combined > 0, combined))
-    neg_derv = len(np.extract(combined < 0, combined))
-    peak_density_difference = pos_derv - neg_derv
-    
-    return density_stability, peak_density_difference
-
-def spectral_clustering(mel_org: np.ndarray, mel_proc: Optional[np.ndarray]):
-    """
-    Detect clustering of peaks to detect irritating resonances. 
-    This is a differential analysis to see if we introduce new resonances.
-    We compare it to the clustering of the original input in order to avoid 
-    adjusting parameters for the wrong error source (false positives). 
-    This is relevant for basically every reverb parameter.
-    We also calculate the regularity of spacing between peaks to detect unnatural reverbration patterns (not anymore, that was stupid)
-
-    Parameters:
-    -----------
-        S_org: STFT of the original audio
-        S_proc: STFT of the processed audio
-
-    Returns:
-    --------
-        final_score: Weighted score compined of closely clustered 
-            and dangerously clustered peaks [-511,511]
-    """
-
-    mel_dB_org = librosa.power_to_db(mel_org)
-    mel_dB_proc = librosa.power_to_db(mel_proc)
-
-    density_org, _, spacing_org = get_frame_peak_density_spacing(mel_dB=mel_dB_org)
-    density_proc,_, spacing_proc = get_frame_peak_density_spacing(mel_dB=mel_dB_proc)
-    
-    if (len(spacing_org) < 2 or len(spacing_proc) < 2):
-        print("Reverbrated audio is too short to properly evaluate spacing parameters")
-        return (0, 0, 0, 0)
-
-    # peak clusters for mean density (shouldn't be too low nor too high and might tell us about resonances)
-    o_cluster_score, o_resonance_score = compute_clustering(spacing_org, density_org)
-    p_cluster_score, p_resonance_score = compute_clustering(spacing_proc, density_proc)
-
-    clustering_diff = p_cluster_score - o_cluster_score
-    resonance_diff = p_resonance_score - o_resonance_score
-
-    final_score = (clustering_diff * 0.3 + resonance_diff * 0.7)
-    return final_score
-
-def compute_clustering(spacing: np.ndarray, density: np.ndarray) -> float:
-    """
-    Calculates the extend of peaks, that cluster closely together
-    and relates it to the overall peak density for comparability
-
-    Parameters:
-    -----------
-    spacing: np.ndarray
-        multi-dimensional array with the sample difference between peaks
-    density: np.ndarray
-        one-dimensional array containing the peak densities per frame
-
-    Returns:
-    --------
-    cluster_score : float 
-        Relation of number of close spacing to the density
-    resonance_score : float
-        Number of very close spectral peaks
-    """
-    if spacing.size == 0 or density.size == 0:
-        return (0.0, 0.0)
-
-
-    # density values in range of [0,1]
-    # threshold have to be exaluated experimentally
-    # both values however are for differential analysis anyway
-    cluster_score = sum(spacing < 60)
-    resonance_score = sum(spacing  < 30)
-
-    return (cluster_score, resonance_score)
+    return peak_tracking
 
 
 def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
@@ -354,26 +277,22 @@ def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
     resonances upon the input signal." [Effect Design* 1: Reverberator and Other Filters JON DATTORR]
     
     Trying to detect ringing by analyzing the occurence of peaks in similar frequencies
-    over consecutive frames.
+    over consecutive frames. (This is somewhat a detection of standing waves/modals)
+
     We define surrounding areas/windows, for relevance and return the maximum
-    for differential analysis. Since this is a differential analysis, it analyzes the resonances,
-    our reverb induces and thus in some way, how the reverb colors the input.
-    Since a coloring of the signal is not desired, and persisting resonances in the output signal are not
-    desired, this is concidered an artifact.
+    for differential analysis.
 
     Parameters:
-    -----------
         S: STFT of processed audio
 
-    Return:
-    -------
+    Returns:
         differential_score: Severeness of ringing on [-2288,2288]
             in case every considered freq in every considered frame clips
     """
 
 
-    _, peak_tracking_org, _= get_frame_peak_density_spacing(mel_org)
-    _, peak_tracking_proc, _= get_frame_peak_density_spacing(mel_proc)
+    peak_tracking_org = get_frame_peak_density_spacing(mel_org)
+    peak_tracking_proc = get_frame_peak_density_spacing(mel_proc)
 
     ringing_org = compute_ringing_score(peak_tracking_org)
     ringing_proc = compute_ringing_score(peak_tracking_proc)

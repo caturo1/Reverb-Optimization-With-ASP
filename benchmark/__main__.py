@@ -14,8 +14,6 @@ import numpy as np
 import soundfile as sf
 from scipy import signal
 from pathlib import Path
-import matplotlib.pyplot as plt
-from scipy.interpolate import CubicSpline
 from typing import Union, Tuple, Optional
 
 class SignalGenerator:
@@ -142,12 +140,12 @@ class SignalGenerator:
         saw = 0.5 * signal.sawtooth(2 * np.pi * frequency * time)
         triangle = 0.25 * signal.sawtooth(2 * np.pi * frequency * time, width=0.5)
         independent_square = np.sign(np.sin(2 * np.pi * frequency * time))
-        square = 0.25 * np.sign(base_sig_norm)
+        square = 0.25 * np.sign(base_sig_norm) if modulated else 0.25 * np.sign(base_sig)
         sq1 = 0.05 * signal.waveforms._waveforms.square(time)
 
         #y = base_sig * saw * square
         # convolution of signals
-        y = signal.fftconvolve(in1 = base_sig_norm, in2 = saw * square, mode='same')
+        y = signal.fftconvolve(in1 = base_sig_norm if modulated else base_sig, in2 = saw * square, mode='same')
         y = y / (np.max(np.abs(y)) + 1e-10)
         #y = np.convolve(a = base_sig, v = saw * square)
         
@@ -346,41 +344,118 @@ class SignalGenerator:
         self,
         duration: float,
         frequency: float,
-        dyn_range: Optional[Tuple[float]],
+        amplitude_range: Tuple[float, float],
         phase_offset: float = 0,
+        fade_edges: bool = True,
+        signal_type: str = "sine"
     ) -> np.ndarray:
         """
-        Generate a simple signal with possibility to control dynamic range over duration.
-
-        Use same lower and upper bound if amplitude should be static.
+        Generate a simple test signal with controlled parameters.
+        
+        Parameters:
+        -----------
+        duration : float
+            Duration of the signal in seconds
+        frequency : float
+            Base frequency of the signal in Hz
+        amplitude_range : Tuple[float, float]
+            Range of amplitude values (min, max) for dynamic amplitude changes
+            Use (x, x) for static amplitude of value x
+        phase_offset : float
+            Phase offset between left and right channels in radians
+        fade_edges : bool
+            Whether to apply fade in/out to avoid clicks at signal edges
+        signal_type : str
+            Type of signal to generate: "sine", "square", "sawtooth", "noise", "sweep"
+            
+        Returns:
+        --------
+        np.ndarray
+            Stereo signal array of shape (samples, 2)
         """
-        time = np.arange(0, 1, self.PERIOD, dtype=np.float32)
-        signal_0 = []
-        signal_1 = []
-
-        print("Generating simple stereo sine signal with dynamic range")
-
+        # Ensure phase offset is within bounds
         if not (-self.MAX_PHASE_OFFSET < phase_offset < self.MAX_PHASE_OFFSET):
             phase_offset = random.uniform(-self.MAX_PHASE_OFFSET, self.MAX_PHASE_OFFSET)
         
-        amplitude = random.uniform(dyn_range[0], dyn_range[1])
-        drip = 0.2
-
-        for _ in range(int(duration)):
-            signal_0_n = amplitude * np.sin(2 * np.pi * frequency * time)
-            signal_1_n = amplitude * np.sin(2 * np.pi * frequency * time + phase_offset)
+        # Generate time array for the entire signal duration
+        n_samples = int(duration * self.SAMPLE_RATE)
+        time = np.arange(n_samples) * self.PERIOD
+        
+        # For dynamic amplitude changes, create a smooth amplitude envelope
+        if amplitude_range[0] != amplitude_range[1]:
+            # Generate amplitude envelope with controlled randomness
+            # Number of control points for amplitude changes
+            n_points = max(3, int(duration))
             
-            signal_0.append(signal_0_n)
-            signal_1.append(signal_1_n)
-
-            lower_bound = amplitude - drip if amplitude <= 0.7 else amplitude
-            upper_bound = amplitude + drip if amplitude >= -0.7 else amplitude
-            amplitude = random.uniform(lower_bound, upper_bound)
+            # Generate random amplitude values within the specified range
+            control_amplitudes = np.random.uniform(
+                amplitude_range[0], 
+                amplitude_range[1], 
+                n_points
+            )
+            
+            # Distribute control points across time
+            control_times = np.linspace(0, duration, n_points)
+            
+            # Interpolate to create smooth amplitude changes (cubic spline)
+            from scipy.interpolate import CubicSpline
+            amplitude_envelope = CubicSpline(control_times, control_amplitudes)(time)
+        else:
+            # Static amplitude
+            amplitude_envelope = np.ones(n_samples) * amplitude_range[0]
         
-        signal_0 = np.array(signal_0).flatten()
-        signal_1 = np.array(signal_1).flatten()
+        # Generate base signal depending on signal_type
+        if signal_type == "sine":
+            signal_left = np.sin(2 * np.pi * frequency * time)
+            signal_right = np.sin(2 * np.pi * frequency * time + phase_offset)
+        elif signal_type == "square":
+            signal_left = np.sign(np.sin(2 * np.pi * frequency * time))
+            signal_right = np.sign(np.sin(2 * np.pi * frequency * time + phase_offset))
+        elif signal_type == "sawtooth":
+            from scipy import signal as scipy_signal
+            signal_left = scipy_signal.sawtooth(2 * np.pi * frequency * time)
+            signal_right = scipy_signal.sawtooth(2 * np.pi * frequency * time + phase_offset)
+        elif signal_type == "noise":
+            # White noise with specified correlation between channels
+            signal_left = np.random.normal(0, 1, n_samples)
+            
+            # Control the correlation between channels
+            correlation = np.cos(phase_offset)  # Map phase offset to correlation
+            signal_right = correlation * signal_left + np.sqrt(1 - correlation**2) * np.random.normal(0, 1, n_samples)
+        elif signal_type == "sweep":
+            # Frequency sweep (useful for testing frequency-dependent behavior)
+            from scipy import signal as scipy_signal
+            f0 = frequency * 0.2  # Start frequency
+            f1 = frequency * 5.0  # End frequency
+            signal_left = scipy_signal.chirp(time, f0, duration, f1)
+            signal_right = scipy_signal.chirp(time, f0, duration, f1, phi=phase_offset*180/np.pi)
+        else:
+            raise ValueError(f"Unknown signal type: {signal_type}")
         
-        return np.vstack((signal_0, signal_1)).T
+        # Apply amplitude envelope
+        signal_left *= amplitude_envelope
+        signal_right *= amplitude_envelope
+        
+        # Apply fade in/out to avoid clicks
+        if fade_edges:
+            fade_samples = min(int(0.01 * self.SAMPLE_RATE), n_samples // 10)  # 10ms or 10% of signal
+            fade_in = np.linspace(0, 1, fade_samples)
+            fade_out = np.linspace(1, 0, fade_samples)
+            
+            signal_left[:fade_samples] *= fade_in
+            signal_left[-fade_samples:] *= fade_out
+            signal_right[:fade_samples] *= fade_in
+            signal_right[-fade_samples:] *= fade_out
+        
+        # Combine channels into stereo signal
+        stereo_signal = np.vstack((signal_left, signal_right)).T
+        
+        # Ensure signal is in range [-1, 1]
+        max_abs_value = np.max(np.abs(stereo_signal))
+        if max_abs_value > 1.0:
+            stereo_signal /= max_abs_value
+        
+        return stereo_signal
 
 def parse_tuple(s):
     try:
@@ -485,7 +560,7 @@ def main(argv):
         mod_depth=md,
         complex=bool(mode)
     )
-    
+
     flattened_signal = np.ravel(a=sig,order="C")
     max_amp = np.amax(flattened_signal)
     min_amp = np.amin(flattened_signal)
@@ -506,6 +581,6 @@ def main(argv):
     json_path = result_dir / f"audio_test_{n_run}.json"
     with open(json_path, 'w') as f:  # Note the 'w' mode for writing
         json.dump(stats, f, indent=4)
-            
+
 if __name__ == "__main__":
     main(sys.argv[1:])

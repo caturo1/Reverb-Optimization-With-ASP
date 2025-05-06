@@ -107,6 +107,7 @@ class ReverbOptimizer(Application):
             print(f"Error {e} processing input audio")
             sys.exit(1)
 
+        # create an object, that holds the instantaneous features
         self.__input_features = InputFeatures(y=y, sr=sr)
         self.store_base_content(self.__input_features.instance_file_path)
         inst = self.__input_features.create_instance()
@@ -215,7 +216,6 @@ class ReverbOptimizer(Application):
         solving_rules = ctl.statistics['problem']['lp']['rules']
         constraints_stats = ctl.statistics['problem']['generator']['constraints']
         time_stats = ctl.statistics['summary']['times']
-        # total time - solving time
 
         stats_output = {
             'choices': solving_choices,
@@ -224,6 +224,7 @@ class ReverbOptimizer(Application):
             'time_total': time_stats['total'],
             'time_cpu': time_stats['cpu'],
             'time_solve': time_stats['solve'],
+            'time_artifact' : checks_t, 
             'time_unsat': time_stats['unsat'],
             'time_sat': time_stats['sat'],
             'rules': solving_rules

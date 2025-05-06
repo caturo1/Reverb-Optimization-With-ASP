@@ -27,11 +27,12 @@ class InputFeatures:
         # store path
         if y.ndim != 2 or y is None:
             raise ValueError("Input array not applicable.")
-
+        self.audio = y
+        self.filterbank_low, self.filterbank_mid = ia.generate_gammatone_filterbank()
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
         
-        # store mel_spectrogram for comparative analysis
+        # cache mel_spectrogram for comparative analysis and to avoid multiple STFT-computations
         self.mel_left, self.mel_right = ia.compute_STFT(y=y, mode="mel")
         self.stft_left, self.stft_right = ia.compute_STFT(y=y, mode="regular")
 
@@ -47,9 +48,9 @@ class InputFeatures:
         # we capture exactly this relationship (I guess)
         self.density = (100 - self.dynamic_range) * self.rms_mean
         self.mid, self.side = ia.mid_side(y)
-        self.spectral_centroid, centroid_l, centroid_r = ia.mean_spectral_centroid(y=y, sr=sr)
+        self.spectral_centroid, centroid_l, centroid_r = ia.mean_spectral_centroid(S_l=self.stft_left, S_r=self.stft_right, sr=sr)
         # self.spectral_flatness = ia.mean_spectral_flatness(y=y)
-        self.spectral_flatness = ia.custom_flatness(y=y)
+        self.spectral_flatness = ia.custom_flatness(S=np.abs(np.vstack([self.stft_left,self.stft_right])))
         self.spectral_spread = ia.spectral_spread(S_l=self.stft_left, S_r=self.stft_right, sr=sr, centroid_left=centroid_l, centroid_right=centroid_r)
 
 

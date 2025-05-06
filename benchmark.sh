@@ -1,155 +1,33 @@
-#!/bin/bash -
+#!/bin/bash
 
-MAX_DURATION=10
-MAX_FREQ=10000
-# we can use the current variable and double it consistently to iterate over frequencies in octaves
-current=110
-N_RUNS=10
-AMPLITUDES=(
-    "(-0.9,0.9)"    # Max dynamic range
-    "(-0.5,0.5)"    # Medium dynamic range  
-    "(-0.2,0.2)"    # Low dynamic range
-    "(-0.9,-0.9)"   # High static
-    "(-0.5,-0.5)"   # Medium static
-    "(-0.2,-0.2)"   # Low static
-)
+# Configuration
+OUTPUT_DIR="./benchmark/results"
+DATA_DIR="./data/testing"
+PROCESSED_DIR="./processed_data"
 
-# set up the directory structure
-BASE_DIR="."  # Add this to make paths clearer
-AUDIO_DIR="$BASE_DIR/data"
-RESULT_DIR="$BASE_DIR/benchmark/results"
-#RESULT_DIR_CLINGO="$RESULT_DIR/clingo"
-#RESULT_DIR_SIGNALS="$RESULT_DIR/signals"
-SIGNAL_DIR="$AUDIO_DIR/testing"
+# Ensure directories exist
+mkdir -p "$OUTPUT_DIR"
+mkdir -p "$DATA_DIR"
+mkdir -p "$PROCESSED_DIR"
 
-mkdir -p "$RESULT_DIR"
-#mkdir -p "$RESULT_DIR_CLINGO"
-#mkdir -p "$RESULT_DIR_SIGNALS"
+# Clean previous test data
+rm -f "$DATA_DIR"/*.wav
+rm -f "$OUTPUT_DIR"/*.json
+rm -f "$PROCESSED_DIR"/*.wav
 
-echo "Starting benchmark..."
+# Run each test case
+echo "Running duration tests..."
+python -m benchmark.run_test_set --test_case duration_test --output "$OUTPUT_DIR/duration_test.json"
 
-# Warmup runs
-for i in {1..3}
-do
-    echo "Warmup run $i/3"
-    freq=$((100 * $i))
-    duration=$((10 / $i))
-    
-    python -m benchmark \
-        -f=$freq \
-        -d=$duration \
-        -mf=2 \
-        -md=1 \
-        -n="warmup$i" \
-        -dr="(-0.5,0.5)" \
-        -r=$i > /dev/null
-    
-    python -m src.application --audio-file="testing/warmup$i.wav" > /dev/null
-    rm ./clingo_stats.json
+echo "Running amplitude tests..."
+python -m benchmark.run_test_set --test_case amplitude_test --output "$OUTPUT_DIR/amplitude_test.json"
 
-done
+echo "Running frequency tests..."
+python -m benchmark.run_test_set --test_case frequency_test --output "$OUTPUT_DIR/frequency_test.json"
 
-echo "Cleaning warmup files..."
+echo "Running complex signal tests..."
+python -m benchmark.run_test_set --test_case complex_signal_test --output "$OUTPUT_DIR/complex_test.json"
 
-rm "$RESULT_DIR"/audio_test*.json
-rm "$SIGNAL_DIR"/warmup*.wav
-rm "$BASE_DIR"/processed_data/v1*.wav
-#rm "$RESULT_DIR_CLINGO"/*.json
-#rm "$RESULT_DIR_SIGNALS"/*.json
-
-# Main benchmark
-# using a simple waveform (no FM synthesis)
-# we can swap the max frequency check again the upper bound of amplitude
-for u in {1..10}
-do
-echo "start run number $u"
-    mode=0
-    loop=1
-    for duration in $(seq 1 2 10)
-    do
-        for amp in "${AMPLITUDES[@]}"
-        do
-            #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
-            frequency=440
-            mf=$frequency
-            md=$duration
-            name="${mode}_${amp}Hz_${duration}s_${loop}run"
-            
-            #echo $name
-            #echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
-            
-            # Generate signal
-            python -m benchmark \
-                -f=$frequency \
-                -d=$duration \
-                -mf=$mf \
-                -md=$md \
-                -n="$name" \
-                -r=$loop > /dev/null
-            
-            sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
-            sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
-
-            # Process with application
-            python -m src.application --audio-file="testing/${name}.wav" > /dev/null
-            
-            # Append the clingo stats to the audio stats
-            sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
-            mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
-
-            loop=$(($loop + 1))
-        done
-    done
-
-
-    # using a complex signal (FM)
-    mode=1
-    loop=1
-
-    for duration in $(seq 1 2 10)
-    do
-        for amp in "${AMPLITUDES[@]}"
-        do
-            #duration=$(( 1 + (i * $MAX_DURATION / $N_RUNS) ))
-            frequency=440
-            mf=$frequency
-            md=$duration
-            name="${mode}_${amp}Hz_${duration}s_${loop}run"
-            
-            #echo $name
-            #echo "Run $loop out of 10 - Frequency: $frequency Hz, Duration: $duration s"
-            
-            # Generate signal
-            python -m benchmark \
-                -f=$frequency \
-                -d=$duration \
-                -mf=$mf \
-                -md=$md \
-                -n="$name" \
-                -r=$loop \
-                -m=$mode > /dev/null
-            
-            sed -i '$d' "$RESULT_DIR/audio_test_${loop}.json"
-            sed -i '$ s/$/,/' "$RESULT_DIR/audio_test_${loop}.json"
-
-            # Process with application
-            python -m src.application --audio-file="testing/${name}.wav" > /dev/null
-            
-            # Append the clingo stats to the audio stats
-            sed '1d' ./clingo_stats.json >> "$RESULT_DIR/audio_test_${loop}.json"
-            mv "$RESULT_DIR/audio_test_${loop}.json" "$RESULT_DIR/audio_test_${loop}_model_${mode}.json"
-
-            loop=$(($loop + 1))
-        done
-    done
-    # Analysis
-    echo "Printing the $u . analyzer plot"
-    python ./benchmark/analyze_results.py $u
-
-    echo "Clearing directories"
-    # clean directories before next run
-    rm "$RESULT_DIR"/audio_test*.json
-    rm "$SIGNAL_DIR"/*run.wav
-    rm "$BASE_DIR"/processed_data/*run.wav
-
-done
+# Generate analysis
+echo "Analyzing results..."
+python -m benchmark.analyze_results --input "$OUTPUT_DIR" --output "$OUTPUT_DIR/analysis"

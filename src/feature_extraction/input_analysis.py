@@ -1,6 +1,7 @@
 import librosa
 import librosa.display
 import matplotlib.pyplot as plt
+from scipy import signal
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple, Optional
@@ -9,6 +10,23 @@ RATE = 44_100
 NFFT = 2048*2
 HOPS = 512*2
 SQRT_2 = np.sqrt(2)
+FREQ_BANDS = {
+    "bass" : {
+        "range" : (0,400),
+        "mask" : lambda f : f <= 400
+    },
+
+    "mid" : {
+        "range" : (401,4000),
+        "mask" : lambda f : (f > 500) & (f <= 4000)
+    },
+
+    "high" : {
+        "range" : (4001, 20_000),
+        "mask" : lambda f : (f > 4000)
+    }
+}
+
 
 def normalize_signal(sig: Optional[np.ndarray]) -> Optional[np.ndarray]:
     """Normalization based on the root mean square energy."""
@@ -16,10 +34,23 @@ def normalize_signal(sig: Optional[np.ndarray]) -> Optional[np.ndarray]:
     rms = np.sqrt(np.mean(sig**2))
     return sig / rms if rms > 0 else sig
 
-def rms_to_db(rms) -> float:
-    """Just to compare with iZotope results"""
+def power_to_dB(value):
+    """
+    Convert power (rms) to dB on dBFS.
+    Used for inputs on [0,1] (rms) and results in possible range of [-100,0] for eps.
 
-    return 20 * np.log10(rms + 1e-10)
+    Parameters:
+        value: power value to convert
+    
+    Returns:
+        Decibel value
+    """
+
+    eps = 1e-10
+    if (value >= 1e-10):
+        return 10 * np.log10(value)
+    else:
+        return 10 * np.log10(eps)
 
 def load_audio(file: str) -> Tuple[np.ndarray[np.float32],int]:
     """Load audio input as a stereo file"""
@@ -33,6 +64,7 @@ def to_stereo(
     if y is None:
         return ValueError("Input signal cannot be None")
 
+    # check if audio is stereo, to avoid transformation
     mono = y.ndim == 1 or y.shape[0] == 1
     if not mono:
         return y
@@ -65,8 +97,26 @@ def compute_STFT(
     
 
 def asp_scaling(arr):
+    """
+    Scaler, that scales an array to a range of [0,100]
+    for ASP reasoning. 
+    """
     scaler = MinMaxScaler(feature_range=(0,100))
     return scaler.fit_transform(arr)
+
+def dB_to_ASP(scalar):
+    """
+    Converts dB values to a range of [0,100] while keeping the logarithmic dB scale
+
+    Parameters:
+        scalar: Value to be transformed
+
+    Return:
+        Scaled value
+    """
+
+    return scalar + 100
+
 
 def rms_features(
         y: Optional[np.ndarray]
@@ -83,44 +133,53 @@ def rms_features(
     if y is None or y.ndim != 2 or y.shape[1] == 0:
         raise ValueError("Input has to be a 2D non-empty array. Check again.")
 
-    rms = librosa.feature.rms(y=librosa.to_mono(y[0]))[0]
+    rms = librosa.feature.rms(y=librosa.to_mono(y))[0]
     rms_left = librosa.feature.rms(y=y[0])[0]
     rms_right = librosa.feature.rms(y=y[1])[0]
 
-    scaled_rms = asp_scaling(rms.reshape(-1, 1))
-    scaled_left = asp_scaling(rms_left.reshape(-1, 1))
-    scaled_right = asp_scaling(rms_right.reshape(-1, 1))
+    rms_mean = dB_to_ASP((power_to_dB(np.mean(rms))))
 
-    rms_mean = np.rint(np.mean(scaled_rms))
-    rms_left_mean = np.rint(np.mean(scaled_left))
-    rms_right_mean = np.rint(np.mean(scaled_right))
+    rms_left_mean = dB_to_ASP(power_to_dB(np.mean(rms_left)))
+    rms_right_mean = dB_to_ASP(power_to_dB(np.mean(rms_right)))
 
-    ## this indicated the energy difference between channels
-    ## indicating panning
-    rms_channel_balance = np.rint(np.abs(rms_left_mean - rms_right_mean))
-
-    return scaled_rms, rms_mean, rms_channel_balance
+    ## energy/intensity difference between channels
+    ## indicating, but not exactly calculating panning
+    rms_channel_balance = np.abs(rms_left_mean - rms_right_mean)
+    
+    return rms, rms_mean, rms_channel_balance
 
 
-def compute_dynamic_rms(scaled_rms: np.ndarray[np.float32]) -> int:
+def compute_dynamic_rms(rms: np.ndarray[np.float32]) -> int:
     """
     Dynamic range calculation based on rms features
 
-    Calculation is done with percentiles to avoid amplitude outliers (ie. clips)
+    Calculation is done with percentiles to avoid outliers (ie. clips)
     to distort the dynamic range result.
     """
 
-    rms = np.ravel(scaled_rms)
     if len(rms) == 0:
         return 0
-    p97 = np.percentile(rms, 97)  
-    p3 = np.percentile(rms, 3)    
+    p97 = np.percentile(a=rms, q=97)
+    p3 = np.percentile(a=rms, q=3)
     
-    return np.rint(p97 - p3)
+    # instead of ratio, return difference in dB
+    dr_dB = np.abs(power_to_dB(p97) - power_to_dB(p3))
+
+    return dr_dB
+
+def compute_dyn_range(y: np.ndarray[np.float32]) -> int:
+    """
+    Traditional dynamic range cmputation
+    """
+    
+    flattened_y = np.ravel(y)
+    dyn_r = 20 * np.log10(np.max(flattened_y) / np.min(flattened_y))
+    return dyn_r
 
 
 def mean_spectral_centroid(
-        y: Optional[np.ndarray], 
+        S_l: Optional[np.ndarray],
+        S_r: Optional[np.ndarray],
         sr: float
         ) -> Tuple[float,float]:
     """
@@ -132,9 +191,9 @@ def mean_spectral_centroid(
     for silent parts of the input signal
     """
     
-    spec_cen_left = librosa.feature.spectral_centroid(y=y[0]+1e-10, sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
-    spec_cen_right = librosa.feature.spectral_centroid(y=y[1]+1e-10, sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
-    mean_spectral_centroid = np.rint(np.mean([spec_cen_left, spec_cen_right]))
+    spec_cen_left = librosa.feature.spectral_centroid(S=np.abs(S_l), sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
+    spec_cen_right = librosa.feature.spectral_centroid(S=np.abs(S_r), sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
+    mean_spectral_centroid = np.rint(np.mean([np.mean(spec_cen_left), np.mean(spec_cen_right)]))
     return mean_spectral_centroid, spec_cen_left, spec_cen_right
 
 # scaling is odd (pure noise had values of 8 on a scale of 0..100)
@@ -157,8 +216,7 @@ def mean_spectral_flatness(
     mean_flatness = np.mean(new)
     return np.rint(mean_flatness)
 
-def custom_flatness(y: np.ndarray):
-    S = np.abs(librosa.stft(y=y, n_fft=NFFT, hop_length=HOPS))
+def custom_flatness(S: np.ndarray):
     n_frames = S.shape[1]
     
     frame_flatness = np.zeros(n_frames)
@@ -211,12 +269,58 @@ def compute_spectral_rolloff(
     """
     Indication about audio bandwith in low/high freqs
 
-    Might be redundant concidering we use spectral centroid
+    Might be redundant considering we use spectral centroid
     and spectral flatness.    
     """
     rolloff_left = librosa.feature.spectral_rolloff(y=y[0], sr=sr)[0]
     rolloff_right = librosa.feature.spectral_rolloff(y=y[1], sr=sr)[0]
     return rolloff_left, rolloff_right
+
+def generate_gammatone_filterbank(f_inf: int = 100,
+                                  f_sup: int = 4000,
+                                  n_bands: int = 25):
+    
+    """
+    Create a filterbank with linearly spaced frequencies on the ERB scale.
+    Inspired by matlab's implementation, with scipy's gammatone filters.
+
+    Parameters:
+        f_inf: Lower end of the frequency range in Hz
+        f_sup: Upper end of the frequency range in Hz
+        n_bands: Number of intermediate values, default = 35 as this is appropriate for a range of 0-4_000
+
+    Return: 
+        Array with filter coefficients for the gammatone filter bank
+    """
+        
+    # define basic constants and transformations
+    a = (1000 * np.log(10)) / (24.7 * 4.37)
+    erb_2_hz = lambda x: (10 ** (x / a) - 1) / 0.00437
+    hz_2_erb = lambda x: 21.4 * np.log10(0.00437 * x + 1)
+    
+    # calculate ERB-numbers for the specified range
+    num_erbs_high = hz_2_erb(f_inf)
+    num_erbs_low = hz_2_erb(f_sup)
+
+    # create linspace array on the ERB-scale
+    erb_num_array = np.linspace(start=num_erbs_low, stop=num_erbs_high, num=n_bands)
+
+    # relate frequencies to ERBs
+    center_freq = erb_2_hz(erb_num_array)
+    # build filter banks seperately for different low & mid frequencies
+    filter_bank_num_low = []
+    filter_bank_num_mid = []
+    for cf in center_freq:
+        # Bandwidth of each filter is adjusted according to the ERB-formula in terms of center frequency.
+        if (FREQ_BANDS["bass"]["mask"](cf)):
+            b = signal.gammatone(freq=cf, ftype='iir', order=4, fs= RATE/2)
+            filter_bank_num_low.append(b)
+        if (FREQ_BANDS["mid"]["mask"](cf)):
+            b = signal.gammatone(freq=cf, ftype='iir', order=4, fs= RATE/2)
+            filter_bank_num_mid.append(b)
+    
+    return filter_bank_num_low, filter_bank_num_mid
+
 
 
 def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:

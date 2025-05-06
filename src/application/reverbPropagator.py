@@ -34,7 +34,6 @@ class reverbPropagator:
             We will combine the channels in the check function.
 
         """
-
         self.__reassignments        = 0
         self.__input_feats          = input_features
         self.model_number           = model_n
@@ -45,7 +44,7 @@ class reverbPropagator:
                 "adjustment" : 1.1
             },
             "bass-to-mid" : {
-                "thresh" : 12,
+                "thresh" : 10,
                 "count" : 4,
                 "adjustment" : 1.1
             },
@@ -200,8 +199,7 @@ class reverbPropagator:
                 del state[lit]
 
     def bulkcheck(self, artifact_features: ArtifactFeatures):
-        if (artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
-            artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
+        if (artifact_features.b2mR > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
             artifact_features.clipping_r > self.__artifact_thresholds["clipping"]["thresh"] or
             artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"] or
             artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"][0] or 
@@ -225,8 +223,7 @@ class reverbPropagator:
 
         flag = False
         artifact = {
-            'b2m': (artifact_features.b2mR_L > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
-                    artifact_features.b2mR_R > self.__artifact_thresholds["bass-to-mid"]["thresh"]),
+            'b2m': (artifact_features.b2mR > self.__artifact_thresholds["bass-to-mid"]["thresh"]),
             
             'cc': (artifact_features.cc < self.__artifact_thresholds["cross-correlation"]["thresh"][0] or
                 artifact_features.cc > self.__artifact_thresholds["cross-correlation"]["thresh"][1]),
@@ -339,7 +336,10 @@ class reverbPropagator:
 
             s6 = timer()
             artifact_features = ArtifactFeatures(
-                y=output,
+                y_org=self.__input_feats.audio,
+                y_proc=output,
+                filter_bank_num_low=self.__input_feats.filterbank_low, 
+                filter_bank_num_mid=self.__input_feats.filterbank_mid,
                 mel_l_org=self.__input_feats.mel_left,
                 mel_r_org=self.__input_feats.mel_right)
             s7 = timer()

@@ -43,21 +43,21 @@
    selected_damp(D), 
    P > 5000, W > 60, D < 40.
 
-:- dr(D), selected_size(R), selected_wet(W), D < 30, R > 60, W > 25.
+:- dr(D), selected_size(R), selected_wet(W), D < 20, R > 60, W > 25.
 % conflict for 95 dynamic range, why is my wet only 5? This is very odd
-:- dr(D), selected_size(R), D > 70, R < 20.
-:- dr(D), selected_wet(W), D > 70, W < 30.
+:- dr(D), selected_size(R), D > 60, R < 25.
+:- dr(D), selected_wet(W), D > 70, W < 35.
 
 :- rms_channel_balance(B), selected_spread(S), B > 60, S < 60.
 :- rms_channel_balance(B), selected_spread(S), B < 20 , S > 40, S < 10.
-:- rms(E), selected_wet(W), selected_size(S), E > 90, W > 35, S > 50.
-:- rms(E), selected_wet(W), E < 20, W < 50.
+:- rms(E), selected_wet(W), selected_size(S), E > 90, W > 40, S > 50.
+:- rms(E), selected_wet(W), E < 30, W < 50.
 
 % Set spread-related parameters
 % Roughly, if we have a mono/quite mono signal, we want higher spread parameters
 % If we already have a spread input audio, the spread of the reverb should be small
 
-selected_spread(0) :- side(0).
+%selected_spread(0) :- side(0).
 :- mid(M), side(X), selected_spread(Y), X > M, Y > 30.
 :- mid(M), side(X), selected_spread(Y), U = X + 10, M > U, Y < 40.
 :- mid(M), side(X), selected_spread(Y), M + X > 80, Y > 60, Y < 15.
