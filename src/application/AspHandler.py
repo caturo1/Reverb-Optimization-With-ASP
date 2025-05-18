@@ -1,5 +1,4 @@
 import sys
-from typing import Optional
 
 class AspHandler:
     """
@@ -16,12 +15,19 @@ class AspHandler:
         self.write_instance()
 
     @staticmethod
-    def write_instance(input_instance, instance_file_path) -> Optional[str]:
+    def write_instance(input_instance, instance_file_path):
         """Append the extracted input features to the instance.lp file
          
         In case of error: 
         - We couldn't find the file return
         - We have a runtime IO error
+
+        Parameters:
+            input_instance : The input instance to be written to the file
+            instance_file_path : The path to the instance file
+
+        Returns:
+            None
         """
         if not input_instance:
             print("No instance to write")

@@ -5,6 +5,11 @@ OUTPUT_DIR="./benchmark/results"
 DATA_DIR="./data/testing"
 PROCESSED_DIR="./processed_data"
 
+DURATION_DIR="$DATA_DIR/duration_tests"
+AMP_DIR="$DATA_DIR/amplitude_tests"
+FREQ_DIR="$DATA_DIR/frequency_tests"
+COMP_DIR="$DATA_DIR/complexity_tests"
+
 # Ensure directories exist
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$DATA_DIR"
@@ -26,7 +31,7 @@ echo "Running frequency tests..."
 python -m benchmark.run_test_set --test_case frequency_test --output "$OUTPUT_DIR/frequency_test.json"
 
 echo "Running complex signal tests..."
-python -m benchmark.run_test_set --test_case complex_signal_test --output "$OUTPUT_DIR/complex_test.json"
+python -m benchmark.run_test_set --test_case complex_signal_mod_freq_test --output "$OUTPUT_DIR/complex_test.json"
 
 # Generate analysis
 echo "Analyzing results..."

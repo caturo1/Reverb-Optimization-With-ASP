@@ -1,0 +1,332 @@
+[
+  {
+    "test_name": "complex_signal_mod_freq_test_0",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.05,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.442251205444336,
+      "time_cpu": 22.921875,
+      "time_solve": 14.345312118530273,
+      "time_artifact": 0.0013047001557424664,
+      "time_unsat": 0.0,
+      "time_sat": 14.345312118530273,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_1",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.1,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.692859649658203,
+      "time_cpu": 20.34375,
+      "time_solve": 14.616556167602539,
+      "time_artifact": 0.0013928001280874014,
+      "time_unsat": 0.0,
+      "time_sat": 14.616556167602539,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_2",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.2,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.286354064941406,
+      "time_cpu": 20.640625,
+      "time_solve": 14.239547729492188,
+      "time_artifact": 0.0013142003444954753,
+      "time_unsat": 0.0,
+      "time_sat": 14.239547729492188,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_3",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.3,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.447002410888672,
+      "time_cpu": 24.0625,
+      "time_solve": 14.394197463989258,
+      "time_artifact": 0.0012972000986337662,
+      "time_unsat": 0.0,
+      "time_sat": 14.394197463989258,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_4",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.4,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.493162155151367,
+      "time_cpu": 22.0625,
+      "time_solve": 14.435827255249023,
+      "time_artifact": 0.0017519996035844088,
+      "time_unsat": 0.0,
+      "time_sat": 14.435827255249023,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_5",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.5,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 14.52056884765625,
+      "time_cpu": 21.3125,
+      "time_solve": 13.430360794067383,
+      "time_artifact": 0.0014103995636105537,
+      "time_unsat": 0.0,
+      "time_sat": 13.430360794067383,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_6",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.6,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 15.258832931518555,
+      "time_cpu": 21.796875,
+      "time_solve": 14.222013473510742,
+      "time_artifact": 0.001481800340116024,
+      "time_unsat": 0.0,
+      "time_sat": 14.221515655517578,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_7",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.7,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 14.587312698364258,
+      "time_cpu": 22.5625,
+      "time_solve": 13.543006896972656,
+      "time_artifact": 0.001350000617094338,
+      "time_unsat": 0.0,
+      "time_sat": 13.543006896972656,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_8",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.8,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 14.690536499023438,
+      "time_cpu": 20.96875,
+      "time_solve": 13.540885925292969,
+      "time_artifact": 0.0012592998100444674,
+      "time_unsat": 0.0,
+      "time_sat": 13.540885925292969,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_9",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.9,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 232.0,
+      "conflicts": 60.0,
+      "constraints": 7.0,
+      "num_artifacts": 60,
+      "time_total": 14.561883926391602,
+      "time_cpu": 22.765625,
+      "time_solve": 13.505464553833008,
+      "time_artifact": 0.0014381990768015385,
+      "time_unsat": 0.0,
+      "time_sat": 13.505464553833008,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  }
+]

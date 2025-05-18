@@ -62,9 +62,10 @@ class SignalGenerator:
         self,
         name: str,
         amplitude: Optional[Tuple[int]],
+        waveform: str,
         frequency: float,
         duration: float = 1.0,
-        complex: bool = True,
+        complex: bool = False,
         phase_offset: float = 0.0,
         modulated: bool = True,
         mod_frequency: float = 0.12,
@@ -100,10 +101,11 @@ class SignalGenerator:
                 mod_depth=mod_depth)
         else:
             signal = self._generate_simple_signal(
+                signal_type=waveform,
                 duration=duration,
                 frequency=frequency,
                 phase_offset=phase_offset,
-                dyn_range=amplitude)
+                amplitude_range=amplitude)
             
         output_path = self.output_dir / f"{name}.wav"
         # print(output_path)
@@ -207,19 +209,6 @@ class SignalGenerator:
         # cs = CubicSpline(anchor_positions, anchor_values)
         envelope = np.interp(np.arange(len(time)), anchor_positions, anchor_values)
 
-        """
-        plt.figure()
-        plt.plot(envelope)
-        plt.title("Envelope Shape")
-        plt.show()
-
-        print("Anchor values:", anchor_values)
-        print("Time points:", anchor_positions)
-        print("Shape min/max:", np.min(cs(time)), np.max(cs(time)))
-        
-        return cs(time)
-        """
-
         return envelope
 
     def _frequency_modulation(
@@ -272,9 +261,9 @@ class SignalGenerator:
         mod_depth: float = 1.0
     ) -> np.ndarray:
         """Generate a complex signal with options:
-        - randomized amplitude envelope
-        - control over randomization with specified dynamic range
-        - composite signal waves (saw, square, sin, triangle)
+        - semi-randomized amplitude envelope
+        - set specified dynamic range
+        - composite signal waves (saw, square, sin, sawtooth, noise)
         - option between stereo/mono
         - varying degree of phase offset, thus stereo separation between channels
         - frequency modulation using different carrier frequencies and modulation depth
@@ -347,33 +336,32 @@ class SignalGenerator:
         amplitude_range: Tuple[float, float],
         phase_offset: float = 0,
         fade_edges: bool = True,
-        signal_type: str = "sine"
+        signal_type: str = "sawtooth"
     ) -> np.ndarray:
         """
         Generate a simple test signal with controlled parameters.
         
         Parameters:
-        -----------
-        duration : float
-            Duration of the signal in seconds
-        frequency : float
-            Base frequency of the signal in Hz
-        amplitude_range : Tuple[float, float]
-            Range of amplitude values (min, max) for dynamic amplitude changes
-            Use (x, x) for static amplitude of value x
-        phase_offset : float
-            Phase offset between left and right channels in radians
-        fade_edges : bool
-            Whether to apply fade in/out to avoid clicks at signal edges
-        signal_type : str
-            Type of signal to generate: "sine", "square", "sawtooth", "noise", "sweep"
+            duration : float
+                Duration of the signal in seconds
+            frequency : float
+                Base frequency of the signal in Hz
+            amplitude_range : Tuple[float, float]
+                Range of amplitude values (min, max) for dynamic amplitude changes
+                Use (x, x) for static amplitude of value x
+            phase_offset : float
+                Phase offset between left and right channels in radians
+            fade_edges : bool
+                Whether to apply fade in/out to avoid clicks at signal edges
+            signal_type : str
+                Type of signal to generate: "sine", "square", "sawtooth", "noise", "sweep"
             
         Returns:
-        --------
-        np.ndarray
             Stereo signal array of shape (samples, 2)
         """
+        
         # Ensure phase offset is within bounds
+        print("Generating simple signal")
         if not (-self.MAX_PHASE_OFFSET < phase_offset < self.MAX_PHASE_OFFSET):
             phase_offset = random.uniform(-self.MAX_PHASE_OFFSET, self.MAX_PHASE_OFFSET)
         

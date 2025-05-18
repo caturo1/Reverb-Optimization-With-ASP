@@ -1,15 +1,17 @@
 import librosa
-import librosa.display
 import matplotlib.pyplot as plt
 from scipy import signal
 import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from typing import Tuple, Optional
 
+# store makros
 RATE = 44_100
 NFFT = 2048*2
 HOPS = 512*2
 SQRT_2 = np.sqrt(2)
+# different frequency bands to calculate the gammatone filterbank
+# please note: the frequency bands don't represent what's actually understood as bass/mid/high
 FREQ_BANDS = {
     "bass" : {
         "range" : (0,400),
@@ -26,13 +28,6 @@ FREQ_BANDS = {
         "mask" : lambda f : (f > 4000)
     }
 }
-
-
-def normalize_signal(sig: Optional[np.ndarray]) -> Optional[np.ndarray]:
-    """Normalization based on the root mean square energy."""
-
-    rms = np.sqrt(np.mean(sig**2))
-    return sig / rms if rms > 0 else sig
 
 def power_to_dB(value):
     """
@@ -53,37 +48,50 @@ def power_to_dB(value):
         return 10 * np.log10(eps)
 
 def load_audio(file: str) -> Tuple[np.ndarray[np.float32],int]:
-    """Load audio input as a stereo file"""
+    """Load audio input as a stereo file
+    
+    Parameters:
+        file: Path to the audio file
+    Returns:
+        y: The audio signal as a stereo signal
+        sr: The sample rate of the audio file
+    """
     y, sr = librosa.load(path=file, sr=RATE, mono=False)
     return to_stereo(y), sr
     
 def to_stereo(
-        y: Optional[np.ndarray]
-        ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
-    """Create stereo signal by duplicating the mono signal if necessary"""
+        y: np.ndarray[np.float32]
+        ) -> np.ndarray[np.float32]:
+    """
+    Create stereo signal by duplicating the mono signal if necessary
+    
+    Parameters:
+        y: The input audio signal, as a 2D numpy array.
+    """
     if y is None:
-        return ValueError("Input signal cannot be None")
+        raise ValueError("Input signal cannot be None")
 
-    # check if audio is stereo, to avoid transformation
+    # check if audio already is stereo
     mono = y.ndim == 1 or y.shape[0] == 1
     if not mono:
         return y
+    
+    # if mono, duplicate the signal to create stereo and stack channels vertically
     return np.vstack((y,y))
 
 
 def compute_STFT(
         y: np.ndarray, 
         mode: str,
-        sr: float = RATE
         ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
     """
-    Computation of the STFT for both stereo channels
+    Computation of specific spectrograms for both stereo channels.
+    The function computes either a regular STFT or a mel spectrogram
+    depending on the mode specified.
 
-    To compute the 
-    - Magnitude spectrum we use np.abs(S)
-    - Phase spectrum we use np.angle(S)
-    n_fft is adapted to a sample rate 22_050 but we use a sample rate
-    of 44_100 and thus double the window size for proper frequency resolution
+    Parameters:
+        y: The input audio signal
+        mode: The type of STFT to compute, either "regular" or "mel"
     """
     if (mode == "regular"):
         S_left = librosa.stft(y[0], n_fft=NFFT, hop_length=HOPS)
@@ -96,22 +104,25 @@ def compute_STFT(
         return mel_left, mel_right
     
 
-def asp_scaling(arr):
+def asp_scaling(arr) -> np.ndarray:
     """
     Scaler, that scales an array to a range of [0,100]
     for ASP reasoning. 
+
+    Parameters:
+        arr: The input array to be scaled
     """
     scaler = MinMaxScaler(feature_range=(0,100))
     return scaler.fit_transform(arr)
 
 def dB_to_ASP(scalar):
     """
-    Converts dB values to a range of [0,100] while keeping the logarithmic dB scale
+    Shifts dB values to a range of [0,100] while keeping the logarithmic dB scale
 
     Parameters:
         scalar: Value to be transformed
 
-    Return:
+    Returns:
         Scaled value
     """
 
@@ -119,31 +130,33 @@ def dB_to_ASP(scalar):
 
 
 def rms_features(
-        y: Optional[np.ndarray]
+        y: np.ndarray
         ) -> Tuple[np.ndarray[np.float32], int, int, int]:
     """
     Root mean square value calculation of stereo channels.
     
     A central features that provides a measure for the energy contained
-    in the signal. The result is scaled on [0,100] so that ASP can 
-    handle the values and we can transform the results into
-    corresponding reverb parameters.
+    in the signal. The results are transformed to an ASP-specific dB range for easy reasoning.
+    
+    Parameters:
+        y: The input audio signal
     """
 
+    # check if input is stereo (which it should as we transform every input to stereo)
     if y is None or y.ndim != 2 or y.shape[1] == 0:
         raise ValueError("Input has to be a 2D non-empty array. Check again.")
 
+    # compute RMS for both channels
     rms = librosa.feature.rms(y=librosa.to_mono(y))[0]
     rms_left = librosa.feature.rms(y=y[0])[0]
     rms_right = librosa.feature.rms(y=y[1])[0]
 
+    # calculate the means and transform them to our ASP-specific dB range
     rms_mean = dB_to_ASP((power_to_dB(np.mean(rms))))
-
     rms_left_mean = dB_to_ASP(power_to_dB(np.mean(rms_left)))
     rms_right_mean = dB_to_ASP(power_to_dB(np.mean(rms_right)))
 
-    ## energy/intensity difference between channels
-    ## indicating, but not exactly calculating panning
+    # calculate the channel balance as a simplification of actualy panning
     rms_channel_balance = np.abs(rms_left_mean - rms_right_mean)
     
     return rms, rms_mean, rms_channel_balance
@@ -155,6 +168,9 @@ def compute_dynamic_rms(rms: np.ndarray[np.float32]) -> int:
 
     Calculation is done with percentiles to avoid outliers (ie. clips)
     to distort the dynamic range result.
+
+    Parameters:
+        rms: The input array of RMS values
     """
 
     if len(rms) == 0:
@@ -167,28 +183,50 @@ def compute_dynamic_rms(rms: np.ndarray[np.float32]) -> int:
 
     return dr_dB
 
-def compute_dyn_range(y: np.ndarray[np.float32]) -> int:
+def compute_dyn_range(y: np.ndarray[np.float32]) -> float:
     """
-    Traditional dynamic range cmputation
+    Traditional dynamic range computation
+
+    Parameters:
+        y: The input audio signal
+
+    Returns:
+        Dynamic range in dB
     """
+
+    # get absolute values of the signal
+    flattened_y = np.abs(np.ravel(y))
+    # compute min & max values while avoiding silent parts
+    max_val = np.max(flattened_y)
+    min_val = np.min(flattened_y[flattened_y > 1e-6])
     
-    flattened_y = np.ravel(y)
-    dyn_r = 20 * np.log10(np.max(flattened_y) / np.min(flattened_y))
+    # check if signal is silent
+    if max_val < 1e-6 or min_val < 1e-6: 
+        return 0.0
+        
+    # compute dynamic range in dB
+    dyn_r = 20 * np.log10(max_val / min_val)
     return dyn_r
+
 
 
 def mean_spectral_centroid(
         S_l: Optional[np.ndarray],
         S_r: Optional[np.ndarray],
         sr: float
-        ) -> Tuple[float,float]:
+        ) -> Tuple[float,float,float]:
     """
-    Center of gravity of spectral energy
+    Calculates Center of gravity of spectral energy
 
-    This gives us an idea about the brightness of the input
-    and ultimetely hints for the room size and damping.
-    The addition of 1e-10 tries to avoid, that the centroid leans to higher frequencies 
-    for silent parts of the input signal
+    Parameters:
+        S_l: The left channel spectrogram
+        S_r: The right channel spectrogram
+        sr: The sample rate of the audio file
+    
+    Returns:
+        mean_spectral_centroid: The mean spectral centroid of both channels
+        spec_cen_left: The spectral centroid of the left channel
+        spec_cen_right: The spectral centroid of the right channel
     """
     
     spec_cen_left = librosa.feature.spectral_centroid(S=np.abs(S_l), sr=sr, n_fft=NFFT, hop_length=HOPS)[0]
@@ -196,29 +234,24 @@ def mean_spectral_centroid(
     mean_spectral_centroid = np.rint(np.mean([np.mean(spec_cen_left), np.mean(spec_cen_right)]))
     return mean_spectral_centroid, spec_cen_left, spec_cen_right
 
-# scaling is odd (pure noise had values of 8 on a scale of 0..100)
-def mean_spectral_flatness(
-        y: Optional[np.ndarray]
-        ) -> float:
+def custom_flatness(S: np.ndarray) -> int:
     """
-    Noisiness vs Tonalness
+    Calculation of spectral flatness.
+    This measures noisiness vs tonalness.
     
-    This gives us hints about dry/wet settings and damping.
-    The librosa return values are on a scale of [0,1] thus
-    appropiate scaling for ASP. 
     - The closer the result to 0, the more tonal it is
-    - The closer the result to 100, the more noisy it is
+    - The closer the result to 1, the more noisy it is
+
+    Parameters:
+        S: The input spectrogram
+
+    Returns:
+        mean: The mean spectral flatness of the input
     """
-
-    flatness = (librosa.feature.spectral_flatness(y=y, n_fft=NFFT, hop_length=HOPS))
-    new = (flatness.reshape(-1,1)) * 100
-    print(np.amin(new), np.amax(new), np.mean(new))
-    mean_flatness = np.mean(new)
-    return np.rint(mean_flatness)
-
-def custom_flatness(S: np.ndarray):
     n_frames = S.shape[1]
     
+    # calculate the geometric mean and arithmetic mean for each frame
+    # and compute the flatness value
     frame_flatness = np.zeros(n_frames)
     for i in range(n_frames):
         slice = S[:,i]
@@ -228,12 +261,12 @@ def custom_flatness(S: np.ndarray):
         res = geometric_mean / (arithmetic_mean + 1e-10)
         frame_flatness[i] = res
 
+    # scale the mean of [0,1] to [0,100] for ASP
     mean = np.mean(frame_flatness) * 100
 
     return np.rint(mean)
 
 
-#TODO: Check this method again (maybe devide by 2 since we take spread of both channels and calc the mean, thus having spread in both directions mixed in one value)
 def spectral_spread(
         S_l: Optional[np.ndarray],
         S_r: Optional[np.ndarray],
@@ -250,31 +283,33 @@ def spectral_spread(
     - ~[0,500]: concentrated frequency content
     - ~[500-2000]: slight timbre variations
     - ~[>2000]: volatile timbre (quite possibly noisy and harsh)
+
+    Parameters:
+        S_l: The left channel spectrogram
+        S_r: The right channel spectrogram
+        sr: The sample rate of the audio file
+        centroid_left: The spectral centroid of the left channel
+        centroid_right: The spectral centroid of the right channel
+    
+    Returns:
+        mean: The mean spectral spread of both channels
     """
 
+    # calculate the spectral centroid for both channels
     freqs = librosa.fft_frequencies(sr=sr, n_fft=NFFT)
     S_left_mag = np.abs(S_l)
     S_right_mag = np.abs(S_r)
+
+    # normalize the spectral magnitudes
     S_left_norm = S_left_mag / (np.sum(S_left_mag, axis=0, keepdims=True) + 1e-10)
     S_right_norm = S_right_mag / (np.sum(S_right_mag, axis=0, keepdims=True) + 1e-10)
 
+    # calculate the spread for both channels
+    # the spread is calculated as the standard deviation of the spectral centroid
     spread_left = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_left)**2) * S_left_norm, axis=0)/np.sum(S_left_norm))
     spread_right = np.sqrt(np.sum(((freqs.reshape(-1,1) - centroid_right)**2) * S_right_norm, axis=0)/np.sum(S_right_norm))
+    
     return int(np.mean([np.mean(spread_left), np.mean(spread_right)]))
-
-def compute_spectral_rolloff(
-        y: Optional[np.ndarray],
-        sr: float
-        ) -> Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
-    """
-    Indication about audio bandwith in low/high freqs
-
-    Might be redundant considering we use spectral centroid
-    and spectral flatness.    
-    """
-    rolloff_left = librosa.feature.spectral_rolloff(y=y[0], sr=sr)[0]
-    rolloff_right = librosa.feature.spectral_rolloff(y=y[1], sr=sr)[0]
-    return rolloff_left, rolloff_right
 
 def generate_gammatone_filterbank(f_inf: int = 100,
                                   f_sup: int = 4000,
@@ -289,8 +324,9 @@ def generate_gammatone_filterbank(f_inf: int = 100,
         f_sup: Upper end of the frequency range in Hz
         n_bands: Number of intermediate values, default = 35 as this is appropriate for a range of 0-4_000
 
-    Return: 
-        Array with filter coefficients for the gammatone filter bank
+    Returns: 
+        filter_bank_num_low: The filter bank for low frequencies
+        filter_bank_num_mid: The filter bank for mid frequencies
     """
         
     # define basic constants and transformations
@@ -299,8 +335,8 @@ def generate_gammatone_filterbank(f_inf: int = 100,
     hz_2_erb = lambda x: 21.4 * np.log10(0.00437 * x + 1)
     
     # calculate ERB-numbers for the specified range
-    num_erbs_high = hz_2_erb(f_inf)
-    num_erbs_low = hz_2_erb(f_sup)
+    num_erbs_low = hz_2_erb(f_inf)
+    num_erbs_high = hz_2_erb(f_sup)
 
     # create linspace array on the ERB-scale
     erb_num_array = np.linspace(start=num_erbs_low, stop=num_erbs_high, num=n_bands)
@@ -313,10 +349,10 @@ def generate_gammatone_filterbank(f_inf: int = 100,
     for cf in center_freq:
         # Bandwidth of each filter is adjusted according to the ERB-formula in terms of center frequency.
         if (FREQ_BANDS["bass"]["mask"](cf)):
-            b = signal.gammatone(freq=cf, ftype='iir', order=4, fs= RATE/2)
+            b = signal.gammatone(freq=cf, ftype='iir', fs= RATE/2)
             filter_bank_num_low.append(b)
         if (FREQ_BANDS["mid"]["mask"](cf)):
-            b = signal.gammatone(freq=cf, ftype='iir', order=4, fs= RATE/2)
+            b = signal.gammatone(freq=cf, ftype='iir', fs= RATE/2)
             filter_bank_num_mid.append(b)
     
     return filter_bank_num_low, filter_bank_num_mid
@@ -324,8 +360,16 @@ def generate_gammatone_filterbank(f_inf: int = 100,
 
 
 def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[np.float32]]:
-    """Mid/side analysis for stereo spread parameter.
+    """
+    Mid/side analysis for stereo spread parameter.
     Compared to rms_channel_balance, this indicates stereo/mono.
+
+    Parameters:
+        y: The input stereo audio signal
+    
+    Returns:
+        mid: The mid value of the stereo signal
+        side: The side value of the stereo signal
     """
 
     if len(y[0]) != len(y[1]):
@@ -333,16 +377,10 @@ def mid_side(y: Optional[np.ndarray]) ->Tuple[np.ndarray[np.float32],np.ndarray[
 
     sum = (y[0] + y[1]) / SQRT_2
     diff = (y[0] - y[1]) / SQRT_2
+    # scale values to [0,100] for ASP reasoning while keeping the relative differences
     scaled_sum = asp_scaling(sum.reshape(-1,1))
     scaled_diff = asp_scaling(diff.reshape(-1,1))
     mid = np.rint(np.mean(scaled_sum))
     side = np.rint(np.mean(scaled_diff))
+    
     return mid, side
-
-# TODO transient detection (not sure yet, onset detection/COG/librosa peak_pick/flux)
-# Transients may lead to changes of sound quality when manipulating the signal.
-
-# zero crossing as indication for noisiness in time domain 
-# redundant if spectral flatness is used and less informative since high tonal components receive high values as well)
-def noisyness(y):
-    return np.mean(librosa.feature.zero_crossing_rate(y))

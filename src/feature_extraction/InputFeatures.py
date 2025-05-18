@@ -24,38 +24,47 @@ class InputFeatures:
     """    
 
     def __init__(self, y: np.ndarray, sr: float):
-        # store path
+        """
+        Initializes the InputFeatures class.
+
+        Parameters:
+            y: The input audio signal, a 2D numpy array with shape (2, n_samples).
+            sr: The sample rate of the audio signal.
+        """
+        # 1) start with some preprocessing
         if y.ndim != 2 or y is None:
             raise ValueError("Input array not applicable.")
-        self.audio = y
-        self.filterbank_low, self.filterbank_mid = ia.generate_gammatone_filterbank()
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
         
+        # preprocess gammatone filterbank as they are audio independent and should be used over consecutive artifact analysis runs
+        self.filterbank_low, self.filterbank_mid = ia.generate_gammatone_filterbank()
+        
         # cache mel_spectrogram for comparative analysis and to avoid multiple STFT-computations
+        # it will be used in the artifact analysis
         self.mel_left, self.mel_right = ia.compute_STFT(y=y, mode="mel")
         self.stft_left, self.stft_right = ia.compute_STFT(y=y, mode="regular")
 
-        # store feats
+        # 2) Extract instantaneous features 
+        # compute rms related features
         rms, self.rms_mean, self.rms_channel_balance = ia.rms_features(y)
         self.dynamic_range = ia.compute_dynamic_rms(rms)
-        
-        # if rms is high and dr low, the audio is dense (over most part of the audio, it is quite loud)
-        # if it is the other way around, it's sparse (silent audio with a few strong amplutde variations)
-        # so this measurement is a nuance on dynamic range and rms describing how densily populated the audio is
-        # and trying to avoid strong outliers skewing the mean of the rms.
-        # So weighting the inverse dr (similar to headroom) with rms_mean,
-        # we capture exactly this relationship (I guess)
         self.density = (100 - self.dynamic_range) * self.rms_mean
-        self.mid, self.side = ia.mid_side(y)
+        
+        # compute spectral features
         self.spectral_centroid, centroid_l, centroid_r = ia.mean_spectral_centroid(S_l=self.stft_left, S_r=self.stft_right, sr=sr)
-        # self.spectral_flatness = ia.mean_spectral_flatness(y=y)
         self.spectral_flatness = ia.custom_flatness(S=np.abs(np.vstack([self.stft_left,self.stft_right])))
         self.spectral_spread = ia.spectral_spread(S_l=self.stft_left, S_r=self.stft_right, sr=sr, centroid_left=centroid_l, centroid_right=centroid_r)
 
+        # compute mid-side values
+        self.mid, self.side = ia.mid_side(y)
 
     def create_instance(self) -> Optional[str]:
-        """Creation of an instance string describing our input for ASP guessing"""
+        """Creation of an instance string describing our input for ASP guessing
+        
+        Returns:
+            str: The instance string for ASP
+        """
 
         instance = f"""
 rms({int(self.rms_mean)}).

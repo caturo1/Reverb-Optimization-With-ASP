@@ -9,20 +9,9 @@ GLOBAL_READ = 0
 GLOBAL_ANALYZE = 0
 GLOBAL_REVERB = 0
 GLOBAL_CHECKS = 0
+GLOBAL_ARTIFACT_COUNT = 0
 
-"""
-The gist is:
-For watching literals, we have to map:
-symbolic_atoms -> program literals -> solver literals -> watches
 
-How this propagator works
-3)     In the check function, apply the respective gains
-4)     Sum tracks to create the mix
-5)     Create the periodogram and perform the corresponding reasoning module. In this case, look at the number of bands in range
-6)     Minimize and perform lazy nogoods if needed
-7)     If SAT, render plots and wav file
-"""
-    
 class reverbPropagator:
     def __init__(self, display, input_name, input_path, input_features, output_dir, n_frames, dynamics, model_n):
         """
@@ -49,24 +38,9 @@ class reverbPropagator:
                 "adjustment" : 1.1
             },
             "cross-correlation" : {
-                "thresh" : (-0.3, 0.3),
+                "thresh" : (-0.3, 1.0),
                 "count" : 3,
                 "adjustment" : 1.1
-            },
-            "density_stability" : {
-                "thresh" : 0.25,
-                "count" : 5,
-                "adjustment" : 0.8
-            },
-            "density_difference" : {
-                "thresh" : 0.3 * n_frames,
-                "count" : 5,
-                "adjustment" : 1.25
-            },
-            "cluster_score" : {
-                "thresh" : 50,
-                "count" : 7,
-                "adjustment" : 1.25
             },
             "ringing" : {
                 "thresh" : 1000,
@@ -75,7 +49,8 @@ class reverbPropagator:
             }
         }
         self.__input_path           = input_path
-        self.__states               = {} ## Use a list to preserve states
+        # Dict to preserve states
+        self.__states               = {} 
         self.__symbols              = {}
         # set __display back to = display (just for benchmark True)
         self.__display              = True
@@ -94,21 +69,21 @@ class reverbPropagator:
         Here we set up watches used for propagation.
         Called once before each solving step.
 
-        Prameters:
+        Prameters
         ----------
-            init: PropagateInit
+            init : PropagateInit
 
         """
-
-        ## No multithread support for now
-        ## Fetch the parameter values and register them to watches
+        # We need to set up the watches for the parameters we want to propagate
         for atom in init.symbolic_atoms:
             
             if atom.symbol.name == "selected_size":
                 lit = init.solver_literal(atom.literal)
                 size = int(str(atom.symbol.arguments[0]))
-                self.__symbols[lit] = size
-                self.__parameters[lit] = "selected_size"
+                # Maps literal to parameter value
+                self.__symbols[lit] = size  
+                # Maps literal to parameter name -> Alternative implementation with tuples as dict entries to reduce the number of lookups
+                self.__parameters[lit] = "selected_size" 
                 init.add_watch(lit)
             if atom.symbol.name == "selected_damp":
                 lit = init.solver_literal(atom.literal)
@@ -137,7 +112,6 @@ class reverbPropagator:
         partial assignment.
 
         Parameters:
-        -----------
             ctl: PropagateControl object,
                     which is used to inspect current assignment, record nogoods and trigger unit propagation.
                     Its threadID (seperate instance of CDCL) remarks currently active thread
@@ -153,22 +127,23 @@ class reverbPropagator:
     def expansion(self, conflict: str) -> None:
         """
         Apply nogood and check, if we adjust thresholds.
-        This is the core idea of having a dynamic artifact range, because subjectively speaking,
-        some artifacts might add a some character we might like but we optimally want to avoid them.
+        This is the core idea of having a dynamic artifact range, because
+        defining a static threshold for a diverse set of inputs is hard and the perception of sound and artifacts to some degree is inherently subjective.
 
-        Remark: 
-        - Idea 1) Dynamically adjust thresholds if we can't find a model that satisfies our artifact threholds. Speaking for this are the very individual feature scales and data types
-        - Idea 2) Implement the thresholds in ASP encoding but search space then for first input analysis way larger (not yet implemented) and then use the specified artifact range as optimization statement
+        After violating a threshold 15 times and not yet reassigning the artifact specific threshold a fixed number of times,
+        we will adjust the threshold by an artifact specific factor.
+        If the number of reassignments has been exhausted, we will not adjust the threshold anymore.
 
         Parameters:
-        -----------
             conflict: The artifact we discovered, that violated our predefined thresholds
         """
 
         if self.__display:
-                print(f"Oops, we have a {conflict} artifact! Add nogood")
-        ## --> for cross correlation debug
+                print(f"We have a {conflict} artifact! Add nogood")
+        
+        # check number of overall and individual reassignments
         if self.__reassignments > 15 and self.__artifact_thresholds[conflict]["count"] > 0:
+            # adjust the threshold and count
             if conflict == "cross-correlation":
                 self.__artifact_thresholds[conflict]["thresh"] = \
                     (self.__artifact_thresholds[conflict]["thresh"][0] * self.__artifact_thresholds[conflict]["adjustment"],\
@@ -180,10 +155,8 @@ class reverbPropagator:
 
     def undo(self, thread_id, assignment, changes):
         """
-        Counterpart of propagate and called whenever the solver retracts assignments
-        to watches literals. It updates assignment dependent states in a propagator
-        but doesn't modify the current state of the solver. 
-        This implements the backtracking in CDCL (I suppose)
+        Called whenever the solver retracts assignments
+        to watched literals. It updates assignment dependent states in a propagator. 
 
         Parameters:
         -----------
@@ -199,6 +172,17 @@ class reverbPropagator:
                 del state[lit]
 
     def bulkcheck(self, artifact_features: ArtifactFeatures):
+        """
+        Check for artifacts in the reverberated audio.
+
+        Parameters:
+            artifact_features: The artifact features object of the reverberated audio
+        
+        Returns:
+            bool: True if artifacts are found, False otherwise
+        """
+
+        global GLOBAL_ARTIFACT_COUNT
         if (artifact_features.b2mR > self.__artifact_thresholds["bass-to-mid"]["thresh"] or
             artifact_features.clipping_r > self.__artifact_thresholds["clipping"]["thresh"] or
             artifact_features.clipping_l > self.__artifact_thresholds["clipping"]["thresh"] or
@@ -208,20 +192,27 @@ class reverbPropagator:
             artifact_features.ringing_r > self.__artifact_thresholds["ringing"]["thresh"]):
             if (self.__display):
                 print("Found artifacts.")
+            GLOBAL_ARTIFACT_COUNT += 1
             return True
         
         return False
     
     def dynamic_check(self, artifact_features, nogood, state):
         """
-        Depending on the violated artifact, add nogoods relevant to these artifacts.
-        This is a try to minimize the backtracking in the CDCL algorithm.
+        Depending on the violated artifact, add only relevant nogoods.
 
-        We will later compare the length of nogoods between this and bulkcheck,
-        therefore just at literals if they aren't contained in the nogood list yet.
+        Parameters:
+            artifact_features: The artifact features object of the reverberated audio
+            nogood: The nogood list
+            state: The current state of the solver
+        
+        Returns:
+            bool: True if artifacts are found, False otherwise
         """
 
         flag = False
+
+        # build a dictionary with artifacts 
         artifact = {
             'b2m': (artifact_features.b2mR > self.__artifact_thresholds["bass-to-mid"]["thresh"]),
             
@@ -238,9 +229,13 @@ class reverbPropagator:
         def handle_artifacts(condition, nogood_params=None):
             """Helper function to handle common artifact processing logic"""
             nonlocal flag
+            global GLOBAL_ARTIFACT_COUNT
+
             self.expansion(condition)
             self.__reassignments += 1
+            GLOBAL_ARTIFACT_COUNT = self.__reassignments
             
+            # build nogoods
             for item, _ in state.items():
                 if item not in nogood:
                     if nogood_params:
@@ -253,6 +248,7 @@ class reverbPropagator:
 
         violated = next((key for key, is_violated in artifact.items() if is_violated), None)
 
+        # switch cases for the violated artifacts
         match violated:
             case 'b2m':
                 handle_artifacts(
@@ -281,40 +277,39 @@ class reverbPropagator:
 
 
     def get_time_features():
-        return GLOBAL_CHECKS, GLOBAL_ANALYZE, GLOBAL_READ, GLOBAL_REVERB
+        """
+        Returns the time statistics of the reverb propagator.
+        """
+        return GLOBAL_CHECKS, GLOBAL_ANALYZE, GLOBAL_READ, GLOBAL_REVERB, GLOBAL_ARTIFACT_COUNT
         
 
     def check(self, control: Control):
         """
-        Similar to propagate, yet invoked w/ changes and only called on total assignments.
-        Independent of watched literals.        
+        Check for artifacts in the reverberated audio and add nogoods if necessary.
+        This function is called whenever the solver has a new assignment.
         """
-
-        ## 3)     In the check function, apply the respective FX
-        ## 4)     Check for any artifacts
-        ## 5)     If SAT, render new wav file, else, add nogood
         
         state       = self.__states
         display     = self.__display
         parameters = {}
         nogood   = []
         
-        #--> fix global issue, since if Optimizer runs for long sessions, they will accumulate over multiple instances
+        # collect stats over multiple runs
         global GLOBAL_READ
         global GLOBAL_ANALYZE
         global GLOBAL_CHECKS
         global GLOBAL_REVERB
 
+        # extract assignment
         for lit, value in sorted(state.items()):
-            ## 3) In the check function, apply the respective gains
             parameter_value = parameter_conversion(value)
             parameters[f"{self.__parameters[lit]}"] = parameter_value
             if (not self.__dynamic) :
                 nogood.append(lit)
 
-        ## 1) Apply reverb with the current parameters
         s10 = timer()
 
+        # Apply reverb with the current parameters
         # Create custom output file with version number according to number of models
         output_name = f"v{self.model_number}_processed_{self.__input_name}"
         output_path = os.path.join(self.__output_dir, output_name)
@@ -326,7 +321,7 @@ class reverbPropagator:
         el6 = s11 - s10
         GLOBAL_REVERB += el6
 
-        ## 2) Load reverbated audio and run artifacts analyzer
+        # Load reverbated audio and run artifacts analyzer
         try:
             s4 = timer()
             output, _ = load_audio(output_path)
@@ -354,10 +349,12 @@ class reverbPropagator:
 
         s8 = timer()
         if (not self.__dynamic):
+            # bulkcheck will check artifacts and add complete nogood
             res = self.bulkcheck(artifact_features)
             if (self.__display):
                 print("Added bulk nogoods\n")
         else:
+            # dynamic_check will check artifacts and add only relevant assignments
             res = self.dynamic_check(artifact_features, nogood, state)
             if (self.__display):
                 print("Added only relevant nogoods\n")
@@ -374,9 +371,11 @@ class reverbPropagator:
             print(f"Model number: {self.model_number}")
             artifact_features.to_string()
 
+    	# if we found an artifact, we need to add a nogood and propagate
         if (res and
             (not control.add_nogood(nogood)
             or not control.propagate())):
+                
                 # reset relevant objects/files so they don't leak into the next run 
                 if (self.__display):
                     print("Reset artifact_feature object and reverbrated audio "
@@ -388,17 +387,3 @@ class reverbPropagator:
                     print("Output file doesn't exist")
                     sys.exit(1)
                 return
-
-"""
-        elif(artifact_features.den_diff_differential_l < self.__artifact_thresholds["density_difference"]["thresh"] or
-            artifact_features.den_diff_differential_r < self.__artifact_thresholds["density_difference"]["thresh"] or
-            artifact_features.den_stability_differential_l < self.__artifact_thresholds["density_stability"]["thresh"] or
-            artifact_features.den_stability_differential_r < self.__artifact_thresholds["density_stability"]["thresh"]):
-            self.expansion("density_difference")
-            thresh = self.__artifact_thresholds["density_difference"]["thresh"]
-            print(f"Is density_difference {artifact_features.den_diff_differential_l} or {artifact_features.den_diff_differential_l} < {thresh}")
-            self.expansion("density_stability")
-            self.__reassignments += 1
-            if not control.add_nogood(nogood) or not control.propagate():
-                return    
-"""

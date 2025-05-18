@@ -45,7 +45,7 @@ class ReverbOptimizer(Application):
 
     def dir_setup(self):
         """
-        Set up directory for output files
+        Internally set up directory for output files
         """
 
         if not os.path.exists(self.output_dir):
@@ -59,32 +59,40 @@ class ReverbOptimizer(Application):
 
     def __parse_audio_file(self, value):
         """
-        Parse argument string
+        Parse cli argument string
+
+        Parameters:
+            value: Path to the audio file
         """
+
         self.__audio_file = os.path.join(self.__audio_file, value)
         print(self.__audio_file)
         return True if isinstance(value, str) else False
 
     def register_options(self, options):
         """
-        Extension point to add options to clingo-sp like choosing the
-        transformation to apply.
+        Add options to clingo
 
+        Parameters:
+            options: clingo options
         """
         group = "FX Processing Options"
 
+        # add audio file name
         options.add(
             group, 
             "audio-file", 
             dedent("""Audio file to process. Default=demo.wav"""),
             self.__parse_audio_file)
 
+        # add display option to print more information in the terminal
         options.add_flag(
             group,
             "display",
             dedent("""Display more information"""),
             self.__display)
         
+        # add dynamic option to set modes
         options.add_flag(
             group,
             "dynamic",
@@ -94,40 +102,61 @@ class ReverbOptimizer(Application):
 
     def read_input(self, sample: str) -> None:
         """
-        Read input and internally analyze features and create instance file
+        1) Read input audio
+        2) Analyze features
+        4) Store instance file content in memory
+        3) Create input-specific instance file
         
         Parameters:
-        -----------
             sample: Path to the input audio
         """
-        try: 
+
+        try:
+            # read input 
             y, sr = load_audio(sample)     
             
         except Exception as e:
             print(f"Error {e} processing input audio")
             sys.exit(1)
 
-        # create an object, that holds the instantaneous features
+        # analyze features
         self.__input_features = InputFeatures(y=y, sr=sr)
         self.store_base_content(self.__input_features.instance_file_path)
+        # create instance file
         inst = self.__input_features.create_instance()
         if self.__display:
             print(f"{inst}\n\n")
 
-    def store_base_content(self, instance_file_path) -> None:
+    def store_base_content(self, instance_file_path: str) -> None:
+        """
+        Function to store the original content of the instance file
+        in memory for later recovery between runs.
+
+        Parameters:
+            instance_file_path: Path to the instance file
+        """
         if (not isinstance(instance_file_path, str)):
             print("Instance file path dubious")
             sys.exit(1)
 
         try:
             with open(instance_file_path) as f:
+                    # extract base content for continous runs
                     self.__base_content = f.read()
-    
+
         except IOError as e:
             print(f"Input error {e}")
             sys.exit(1)
     
-    def reset(self, instance_file_path):
+    def reset(self, instance_file_path: str) -> None:
+        """
+        Reset the instance file to its original state
+        after the finishing a run.
+
+        Parameters:
+            instance_file_path: Path to the instance file
+        """
+
         try:
             with open(instance_file_path, "r+") as f:
                 f.seek(0)
@@ -140,19 +169,31 @@ class ReverbOptimizer(Application):
 
     def main(self, ctl: Control, files: Sequence[str]) -> None:
         """
-        Main function implementing a multi-shot-solving attempt.
+        Main function as the entry point for the theory propagation.
+        
+        It is called by the clingo main function and
+        is responsible for setting up the application and running the clingo solver.
+        The function first sets up the directory for the output files,
+        then reads the input audio file and analyzes its features.
+        It then loads the clingo encoding and input file, and
+        grounds the encoding. Finally, it registers the propagator
+        and solves according to its logic. The function also
+        collects statistics on the solving process and writes
+        them to a JSON file.
+
+        The function additionally collects time statistics on the solving process.
 
         Parameters:
-        self: application object
-        ctl: control handle
-        files: list of files, namely the encoding and instances
+            ctl: control handle
+            files: list of files, namely the encoding and instances
         """
+
         self.dir_setup()
         start = timer()
         ## Determine file path for reverbrated audio
         input_basename = os.path.basename(self.__audio_file)
         
-        ## 1) Read input, analyze features, create instance
+        ## 1) Read input (internally handles feature extraction and instance file creation)
         if self.__display:
             print(f"Analyzing input audio {self.__audio_file}")
         s0 = timer()
@@ -164,7 +205,6 @@ class ReverbOptimizer(Application):
         if self.__display:
             print("Loading encodings")
         ctl.load(self.__encoding)
-#        ctl.load(self.__input_features.instance_file_path)
 
         ## 3) Ground the encoding
         s2 = timer()
@@ -195,7 +235,7 @@ class ReverbOptimizer(Application):
             
             self.reset(self.__input_features.instance_file_path)
 
-        checks_t, analyze_t, read_t, reverb_t = REVProp.reverbPropagator.get_time_features()
+        checks_t, analyze_t, read_t, reverb_t, artifact_c = REVProp.reverbPropagator.get_time_features()
 
         
         end = timer()
@@ -211,6 +251,7 @@ class ReverbOptimizer(Application):
                   f"Overall runtime: {overall_t}\n"
                   f"Solving time see clingo stats.")
         
+        ## 5) Collect statistics
         solving_choices = ctl.statistics['solving']['solvers']['choices']
         solving_conflicts = ctl.statistics['solving']['solvers']['conflicts']
         solving_rules = ctl.statistics['problem']['lp']['rules']
@@ -221,6 +262,7 @@ class ReverbOptimizer(Application):
             'choices': solving_choices,
             'conflicts': solving_conflicts,
             'constraints': constraints_stats,
+            'num_artifacts': artifact_c,
             'time_total': time_stats['total'],
             'time_cpu': time_stats['cpu'],
             'time_solve': time_stats['solve'],
@@ -230,6 +272,7 @@ class ReverbOptimizer(Application):
             'rules': solving_rules
         }
 
+        ## 6) Write statistics to JSON file
         with open('clingo_stats.json', 'w') as f:
             json.dump(stats_output, f, indent=4)
 

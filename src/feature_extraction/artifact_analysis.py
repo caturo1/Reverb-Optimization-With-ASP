@@ -25,30 +25,6 @@ FREQ_BANDS = {
 }
 
 
-
-def db_scaling(value) -> int:
-    """
-    Scaling of dB related values according to bit-depth of the signal
-
-    Parameters:
-        value: Input dB value
-    
-    Returns:
-        out: Integer scaled value on a scale of [0,100]
-    """
-    min = -20*np.log10(2**BIT_DEPTH)
-    max = 0
-    eps = 1e-10
-    nom = value - min
-    denum = max - min + eps
-    x_scaled = nom / denum
-
-    return np.rint(max(100,x_scaled))
-
-# In general might have to pay attention to the frame length again
-# and maybe use STFT and perceptual weighting instead of mel scale
-# since this might cluster to many frequencies into one bin
-# also, most methods work for one channel so either expand them to stereo input or apply them to each channel
 def clipping_analyzer(y: np.ndarray):
     """
     Detection of clipping in one channel of the signal based on 
@@ -62,7 +38,7 @@ def clipping_analyzer(y: np.ndarray):
         y: One channel of stereo audio on [-1,1]
 
     Returns:
-    Parameter indicating severity of clipping
+        r_cl: Parameter indicating severity of clipping
     """
 
     # calculate an appropriate number of bins according to the input signal
@@ -117,11 +93,11 @@ def clipping_analyzer(y: np.ndarray):
     return r_cl
 
 
-def muddiness_analyzer(
+def muddiness_analyzer_gammatone(
                     y_proc: np.ndarray,
                     y_org: np.ndarray,
                     filter_bank_num_low: list,
-                    filter_bank_num_mid: list
+                    filter_bank_num_mid: list,
                     ):
     """
     Apply the previously generated gammatone filterbank to the final audio.
@@ -149,6 +125,8 @@ def muddiness_analyzer(
     mid_filtered_org = np.zeros_like(y_mono_org)
     mid_filtered_proc = np.zeros_like(y_mono_proc)
 
+    # apply the filterbank to the input signal
+    # and sum the output of all filters
     for filter_coef in filter_bank_num_low:
         bass_filtered_org += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_org)
         bass_filtered_proc += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_proc)
@@ -158,13 +136,16 @@ def muddiness_analyzer(
         mid_filtered_proc += signal.lfilter(filter_coef[0], filter_coef[1], y_mono_proc)
 
     eps = 1e-10
+    # convert power to dB
     to_dB = lambda p : 10 * np.log10(p)
+
     # calculate and normalize values such as mean rms for comparative analysis
     low_energy_org = to_dB(np.mean(librosa.feature.rms(y=bass_filtered_org, frame_length=NFFT, hop_length=HOPS)))
     low_energy_proc = to_dB(np.mean(librosa.feature.rms(y=bass_filtered_proc, frame_length=NFFT, hop_length=HOPS)))
     mid_energy_org = to_dB(np.mean(librosa.feature.rms(y=mid_filtered_org, frame_length=NFFT, hop_length=HOPS)))
     mid_energy_proc = to_dB(np.mean(librosa.feature.rms(y=mid_filtered_proc, frame_length=NFFT, hop_length=HOPS)))
     
+    # normalize the values fór comparative analysis
     total_org = low_energy_org + mid_energy_org + eps
     total_proc = low_energy_proc + mid_energy_proc + eps
     norm_org_low = low_energy_org / total_org
@@ -172,13 +153,14 @@ def muddiness_analyzer(
     norm_proc_low = low_energy_proc / total_proc
     norm_proc_mid = mid_energy_proc / total_proc
 
-    # compare energy distribution
+    # compare energy distribution amd return final score
     b2m_org = norm_org_low / norm_org_mid
     b2m_proc = norm_proc_low / norm_proc_mid
 
     mud_score = b2m_org - b2m_proc
-    
+
     return mud_score
+
 
 def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
     """
@@ -195,29 +177,32 @@ def muddiness_analyzation(mel_S: np.ndarray, mel_org: np.ndarray):
         bass_to_mid_ratio: For 16-bit audio roughly [0,96]
     """
 
+    # convert power to dB
     mel_spec = librosa.power_to_db(mel_S)
     mel_spec_org = librosa.power_to_db(mel_org)
     
+    # relate frequency bins to mel frequencies
     n_bins = mel_spec.shape[1]
     mel_freqs = librosa.mel_frequencies(n_mels=n_bins,fmin=20, fmax=20_000)
     mel_concentrated = np.mean(mel_spec, axis=0)
     mel_concentrated_org = np.mean(mel_spec_org, axis=0)
 
+    # calculate the mean energy in the different frequency bands
     scores_org = {}
     scores_proc = {}
     for key in FREQ_BANDS:
         scores_org[key] = np.mean(mel_concentrated[FREQ_BANDS[key]["mask"](mel_freqs)])
         scores_proc[key] = np.mean(mel_concentrated_org[FREQ_BANDS[key]["mask"](mel_freqs)])
 
-    # and how much bass/mids are make up the energy
+    # calculate the ratio of bass to mid frequencies
     bass_to_mid_ratio_org = scores_org["bass"] - scores_org["mid"]
     bass_to_mid_ratio_proc = scores_proc["bass"] - scores_proc["mid"]
     
+    # calculate the difference between the two ratios
     b2m_channel = bass_to_mid_ratio_proc - bass_to_mid_ratio_org
 
     return b2m_channel
 
-# implement with FFT?
 def cross_correlation(y: Optional[np.ndarray]) -> float:
     """
     Calculation of cross correlation based on StereoProcessing paper by RS-MET.
@@ -233,7 +218,7 @@ def cross_correlation(y: Optional[np.ndarray]) -> float:
         raise ValueError(f"Input has to be 2D and non-empty. Check again.")
 
     numerator = np.mean(y[0] * y[1])
-    denom = np.sqrt((np.mean(y[0] ** 2) + np.mean(y[1] ** 2)) + 1e-10)
+    denom = np.sqrt((np.mean(y[0] ** 2) * np.mean(y[1] ** 2)) + 1e-10)
     c = (numerator / denom)
 
     return c
@@ -250,11 +235,14 @@ def get_frame_peak_density_spacing(mel_dB: np.ndarray) ->Tuple[np.ndarray, np.nd
     Returns:
         peak_tracking: Matrix of size n_freqs x n_frames with count in respective position on [0,n_frames]
     """
+
     n_freqs, n_frames = mel_dB.shape
     freqs = librosa.mel_frequencies(n_mels=n_freqs, fmin=20, fmax=20_000)
 
     peak_tracking = np.zeros((n_freqs, n_frames))    
 
+    # iterate over the frames and track the peaks
+    # in the mel spectrogram using librosa's peak-picking algorithm to find the peaks
     for frame_idx in range(n_frames):
         peaks = librosa.util.peak_pick(
             mel_dB[:,frame_idx], 
@@ -290,18 +278,33 @@ def ringing(mel_proc: np.ndarray, mel_org: np.ndarray) -> int:
             in case every considered freq in every considered frame clips
     """
 
-
+    # track the peaks in original and processed audio
     peak_tracking_org = get_frame_peak_density_spacing(mel_org)
     peak_tracking_proc = get_frame_peak_density_spacing(mel_proc)
 
+    # based on the peak tracking, compute the ringing score
+    # for both original and processed audio
     ringing_org = compute_ringing_score(peak_tracking_org)
     ringing_proc = compute_ringing_score(peak_tracking_proc)
 
+    # calculate the differential score
     differential_score = ringing_proc - ringing_org
 
     return differential_score
 
 def compute_ringing_score(peak_tracking: np.ndarray) -> int:
+    """
+    Compute the ringing score based on the peak tracking matrix.
+    The score is calculated by checking the number of closely spaced peaks
+    in the frequency and time domains. 
+
+    Parameters:
+        peak_tracking: Matrix of size n_freqs x n_frames with count in respective position on [0,n_frames]
+
+    Returns:
+        ringing_score: The maximum number of closely spaced peaks in the frequency and time domains.
+    """
+
     
     n_freqs = peak_tracking.shape[0]
     n_frames = peak_tracking.shape[1]

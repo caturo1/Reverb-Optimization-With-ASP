@@ -7,3 +7,5 @@ src/feature_extraction/spectral_analysis.py
 src/ASP/instance.lp
 data
 processed_data
+bench_data
+run_test_on_datasets.py
