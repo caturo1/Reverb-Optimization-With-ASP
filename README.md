@@ -13,7 +13,7 @@ You can set the additional flags:
 * --dynamic:
     If set, this adds only relevant nogoods depending on the detected artifacts; otherwise the reverbrated audio is analyzed for any artifact in bulk mode and adds nogoods bundled
 
-Alternatively, run the "test" script, that runs the Optimizer for every audio file in data with:
+The benchmark can be run just by calling the benchmark script and writes results into ./benchmark/results:
 ```
-bash $ python -m src.test
+bash $ ./benchmark.sh
 ```
