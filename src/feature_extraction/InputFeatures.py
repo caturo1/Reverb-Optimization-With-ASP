@@ -34,6 +34,10 @@ class InputFeatures:
         # 1) start with some preprocessing
         if y.ndim != 2 or y is None:
             raise ValueError("Input array not applicable.")
+        
+        # Store the original audio signal for comparative analysis
+        self.audio = y
+
         script_dir = os.path.dirname(os.path.abspath(__file__))
         self.instance_file_path = os.path.join(script_dir, '../ASP/instance.lp')
         
