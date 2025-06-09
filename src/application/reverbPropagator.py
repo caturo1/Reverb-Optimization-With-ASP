@@ -29,7 +29,7 @@ class reverbPropagator:
         self.__artifact_thresholds  = {
             "clipping" : {
                 "thresh" : 0.7,
-                "count" : 4,
+                "count" : 3,
                 "adjustment" : 1.1
             },
             "bass-to-mid" : {

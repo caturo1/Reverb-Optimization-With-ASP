@@ -83,4 +83,3 @@ spectral_spread({int(self.spectral_spread)})."""
         AspHandler.write_instance(instance, self.instance_file_path)
 
         return instance
-        

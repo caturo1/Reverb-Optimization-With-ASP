@@ -1,0 +1,312 @@
+[
+  {
+    "test_name": "amplitude_test_0",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.05,
+        0.05
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 34.0,
+      "conflicts": 0.0,
+      "constraints": 5.0,
+      "num_artifacts": 0,
+      "time_total": 1.5460643768310547,
+      "time_cpu": 1.5,
+      "time_solve": 0.2991218566894531,
+      "time_artifact": 2.769999991869554e-05,
+      "time_unsat": 0.0,
+      "time_sat": 0.2991218566894531,
+      "rules": 226.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.05417152810666552,
+      "rms": 0.014821456850731995
+    }
+  },
+  {
+    "test_name": "amplitude_test_1",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.1,
+        -0.1
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 34.0,
+      "conflicts": 1.0,
+      "constraints": 5.0,
+      "num_artifacts": 1,
+      "time_total": 1.8546199798583984,
+      "time_cpu": 2.484375,
+      "time_solve": 0.6851654052734375,
+      "time_artifact": 6.989999747020192e-05,
+      "time_unsat": 0.0,
+      "time_sat": 0.6851654052734375,
+      "rules": 226.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.09999999999999955,
+      "rms": 0.05768674822932381
+    }
+  },
+  {
+    "test_name": "amplitude_test_2",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.2,
+        -0.2
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 34.0,
+      "conflicts": 1.0,
+      "constraints": 5.0,
+      "num_artifacts": 1,
+      "time_total": 1.9820404052734375,
+      "time_cpu": 2.1875,
+      "time_solve": 0.6777267456054688,
+      "time_artifact": 6.330000178422779e-05,
+      "time_unsat": 0.0,
+      "time_sat": 0.6777267456054688,
+      "rules": 226.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.1999999999999991,
+      "rms": 0.11537349645864763
+    }
+  },
+  {
+    "test_name": "amplitude_test_3",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.3,
+        -0.3
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 38.0,
+      "conflicts": 3.0,
+      "constraints": 5.0,
+      "num_artifacts": 3,
+      "time_total": 2.5544281005859375,
+      "time_cpu": 2.65625,
+      "time_solve": 1.3460006713867188,
+      "time_artifact": 0.00013440000111586414,
+      "time_unsat": 0.0,
+      "time_sat": 1.3460006713867188,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.2999999999999986,
+      "rms": 0.1730602446879715
+    }
+  },
+  {
+    "test_name": "amplitude_test_4",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.4,
+        -0.4
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 38.0,
+      "conflicts": 3.0,
+      "constraints": 5.0,
+      "num_artifacts": 3,
+      "time_total": 2.604581832885742,
+      "time_cpu": 2.484375,
+      "time_solve": 1.3633956909179688,
+      "time_artifact": 0.00015859999984968454,
+      "time_unsat": 0.0,
+      "time_sat": 1.3633956909179688,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.3999999999999982,
+      "rms": 0.23074699291729525
+    }
+  },
+  {
+    "test_name": "amplitude_test_5",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 38.0,
+      "conflicts": 3.0,
+      "constraints": 5.0,
+      "num_artifacts": 3,
+      "time_total": 2.5089340209960938,
+      "time_cpu": 3.046875,
+      "time_solve": 1.3017139434814453,
+      "time_artifact": 0.0001517000018793624,
+      "time_unsat": 0.0,
+      "time_sat": 1.3017139434814453,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999999999977,
+      "rms": 0.2884337411466192
+    }
+  },
+  {
+    "test_name": "amplitude_test_6",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.6,
+        -0.6
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 55.0,
+      "conflicts": 20.0,
+      "constraints": 5.0,
+      "num_artifacts": 20,
+      "time_total": 8.371938705444336,
+      "time_cpu": 10.34375,
+      "time_solve": 7.22724723815918,
+      "time_artifact": 0.0006789000071876217,
+      "time_unsat": 0.0,
+      "time_sat": 7.226757049560547,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.5999999999999972,
+      "rms": 0.346120489375943
+    }
+  },
+  {
+    "test_name": "amplitude_test_7",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.7,
+        -0.7
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 55.0,
+      "conflicts": 20.0,
+      "constraints": 5.0,
+      "num_artifacts": 20,
+      "time_total": 8.196163177490234,
+      "time_cpu": 9.921875,
+      "time_solve": 7.00416374206543,
+      "time_artifact": 0.0006579999935638625,
+      "time_unsat": 0.0,
+      "time_sat": 7.00416374206543,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.6999999999999967,
+      "rms": 0.4038072376052667
+    }
+  },
+  {
+    "test_name": "amplitude_test_8",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.8,
+        -0.8
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 55.0,
+      "conflicts": 20.0,
+      "constraints": 5.0,
+      "num_artifacts": 20,
+      "time_total": 8.062332153320312,
+      "time_cpu": 9.875,
+      "time_solve": 6.908527374267578,
+      "time_artifact": 0.0006607999930565711,
+      "time_unsat": 0.0,
+      "time_sat": 6.908115386962891,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.7999999999999964,
+      "rms": 0.4614939858345905
+    }
+  },
+  {
+    "test_name": "amplitude_test_9",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.9,
+        -0.9
+      ],
+      "mode": 0,
+      "waveform": "sawtooth"
+    },
+    "performance": {
+      "choices": 55.0,
+      "conflicts": 20.0,
+      "constraints": 5.0,
+      "num_artifacts": 20,
+      "time_total": 8.126054763793945,
+      "time_cpu": 9.734375,
+      "time_solve": 6.910457611083984,
+      "time_artifact": 0.0006374999938998371,
+      "time_unsat": 0.0,
+      "time_sat": 6.910457611083984,
+      "rules": 334.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.8999999999999959,
+      "rms": 0.5191807340639143
+    }
+  }
+]

@@ -22,7 +22,7 @@ TEST_CASES = {
     ],
     
     "amplitude_test": [
-        {"frequency": 440, "duration": 8, "phase_offset": 0.1, "dynamic_range": (-0.05, 0.05), "mode": 0, "waveform": "sawtooth"},
+        {"frequency": 440, "duration": 8, "phase_offset": 0.1, "dynamic_range": (-0.05, -0.05), "mode": 0, "waveform": "sawtooth"},
         {"frequency": 440, "duration": 8, "phase_offset": 0.1, "dynamic_range": (-0.1, -0.1), "mode": 0, "waveform": "sawtooth"},
         {"frequency": 440, "duration": 8, "phase_offset": 0.1, "dynamic_range": (-0.2, -0.2), "mode": 0, "waveform": "sawtooth"},
         {"frequency": 440, "duration": 8, "phase_offset": 0.1, "dynamic_range": (-0.3, -0.3), "mode": 0, "waveform": "sawtooth"},
@@ -95,11 +95,11 @@ def run_test_set(test_case_name, output_file):
         result = subprocess.run([
             'python', '-m', 'src.application',
             '--audio-file', audio_path,
-            '--display'
+            '--display',
+            '--dynamic'
         ], capture_output=True, text=True)
 
-
-
+        #print(result)
         # Collect results from your application
         try:
             with open('clingo_stats.json', 'r') as f:

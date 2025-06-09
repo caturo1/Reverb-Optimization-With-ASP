@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>A/B Player</title>
+    <meta
+      name="description"
+      content="Toggle between two audio files to compare"
+    />
+    <meta name="author" content="Matt Bartley" />
+
+    <meta property="og:title" content="A/B Audio Player" />
+    <meta property="og:type" content="website" />
+    <meta
+      property="og:description"
+      content="Toggle between two audio files to compare"
+    />
+    <meta property="og:image" content="image.png" />
+
+    <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Lato:wght@400;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css"
+      integrity="sha512-KfkfwYDsLkIlwQp6LFnl8zNdLGxu9YAA1QvwINks4PhcElQSvqcyVLLD9aMhXd13uQjoXtEKNosOWaZqXgel0g=="
+      crossorigin="anonymous"
+      referrerpolicy="no-referrer"
+    />
+    <link rel="stylesheet" href="./css/style.css" />
+  </head>
+
+  <body>
+    <div id="intro">
+      <h1>RevO</h1>
+      <div id="tagline">
+        Audio Player to compare unprocessed and reverberated audio side-by-side
+      </div>
+    </div>
+    <div class="players">
+      <div
+        class="player__wrapper"
+        data-audio-a="./assets/raw_data/1_john-garner_bwv1002_mov4.wav"
+        data-audio-b="./assets/processed_data/v1_processed_1_john-garner_bwv1002_mov4.wav"
+      >
+        <div class="progress__container progress">
+          <div class="progress__bar progress__fill"></div>
+        </div>
+        <div class="ab__controls">
+          <button class="ab__button a__button" disabled="true">Raw</button>
+          <button class="ab__button b__button" disabled="true">Reverb</button>
+        </div>
+        <div class="play__stop__controls">
+          <button class="play__pause__button play__button" disabled="true">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="play__pause__button stop__button" disabled="true">
+            <i class="fa-solid fa-stop"></i>
+          </button>
+        </div>
+        <div class="player__subtext">
+          <p>Violin Partita No.1 in B minor, BWV 1002</p>
+        </div>
+      </div>
+
+      <div
+        class="player__wrapper"
+        data-audio-a="./assets/raw_data/f1_arpeggios_straight_o.wav"
+        data-audio-b="./assets/processed_data/v1_processed_f1_arpeggios_straight_o.wav"
+      >
+        <div class="progress__container progress">
+          <div class="progress__bar progress__fill"></div>
+        </div>
+        <div class="ab__controls">
+          <button class="ab__button a__button" disabled="true">Raw</button>
+          <button class="ab__button b__button" disabled="true">Reverb</button>
+        </div>
+        <div class="play__stop__controls">
+          <button class="play__pause__button play__button" disabled="true">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="play__pause__button stop__button" disabled="true">
+            <i class="fa-solid fa-stop"></i>
+          </button>
+        </div>
+        <div class="player__subtext">
+          <p>Arpeggio from a soprano</p>
+        </div>
+      </div>
+
+      <div
+        class="player__wrapper"
+        data-audio-a="./assets/raw_data/instruments_3-jazz_2_200BPM.wav"
+        data-audio-b="./assets/processed_data/v1_processed_instruments_3-jazz_2_200BPM.wav"
+      >
+        <div class="progress__container progress">
+          <div class="progress__bar progress__fill"></div>
+        </div>
+        <div class="ab__controls">
+          <button class="ab__button a__button" disabled="true">Raw</button>
+          <button class="ab__button b__button" disabled="true">Reverb</button>
+        </div>
+        <div class="play__stop__controls">
+          <button class="play__pause__button play__button" disabled="true">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="play__pause__button stop__button" disabled="true">
+            <i class="fa-solid fa-stop"></i>
+          </button>
+        </div>
+        <div class="player__subtext">
+          <p>Alternating chords on a guitar</p>
+        </div>
+      </div>
+
+      <div
+        class="player__wrapper"
+        data-audio-a="./assets/raw_data/mix_5-string_quartet.wav"
+        data-audio-b="./assets/processed_data/v1_processed_mix_5-string_quartet.wav"
+      >
+        <div class="progress__container progress">
+          <div class="progress__bar progress__fill"></div>
+        </div>
+        <div class="ab__controls">
+          <button class="ab__button a__button" disabled="true">Raw</button>
+          <button class="ab__button b__button" disabled="true">Reverb</button>
+        </div>
+        <div class="play__stop__controls">
+          <button class="play__pause__button play__button" disabled="true">
+            <i class="fa-solid fa-play"></i>
+          </button>
+          <button class="play__pause__button stop__button" disabled="true">
+            <i class="fa-solid fa-stop"></i>
+          </button>
+        </div>
+        <div class="player__subtext">
+          <p>String quartet</p>
+        </div>
+      </div>
+    </div>
+    <script src="./js/ab-player.js"></script>
+  </body>
+</html>

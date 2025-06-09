@@ -1,0 +1,332 @@
+[
+  {
+    "test_name": "complex_signal_mod_freq_test_0",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.05,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.447126388549805,
+      "time_cpu": 9.53125,
+      "time_solve": 6.208251953125,
+      "time_artifact": 0.0006333999990602024,
+      "time_unsat": 0.0,
+      "time_sat": 6.208251953125,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_1",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.1,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.487251281738281,
+      "time_cpu": 9.515625,
+      "time_solve": 6.323530197143555,
+      "time_artifact": 0.0006643999986408744,
+      "time_unsat": 0.0,
+      "time_sat": 6.323530197143555,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_2",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.2,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.717439651489258,
+      "time_cpu": 9.59375,
+      "time_solve": 6.463279724121094,
+      "time_artifact": 0.0006976999975449871,
+      "time_unsat": 0.0,
+      "time_sat": 6.463279724121094,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_3",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.3,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 8.162002563476562,
+      "time_cpu": 9.71875,
+      "time_solve": 6.949802398681641,
+      "time_artifact": 0.0007827000081306323,
+      "time_unsat": 0.0,
+      "time_sat": 6.949802398681641,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_4",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.4,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 8.051738739013672,
+      "time_cpu": 10.84375,
+      "time_solve": 6.731727600097656,
+      "time_artifact": 0.0007592999863845762,
+      "time_unsat": 0.0,
+      "time_sat": 6.73114013671875,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_5",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.5,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.460123062133789,
+      "time_cpu": 9.515625,
+      "time_solve": 6.287919998168945,
+      "time_artifact": 0.0006956999932299368,
+      "time_unsat": 0.0,
+      "time_sat": 6.287418365478516,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_6",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.6,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.267223358154297,
+      "time_cpu": 10.03125,
+      "time_solve": 6.110599517822266,
+      "time_artifact": 0.0006122000086179469,
+      "time_unsat": 0.0,
+      "time_sat": 6.110097885131836,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_7",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.7,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.249881744384766,
+      "time_cpu": 8.453125,
+      "time_solve": 6.106927871704102,
+      "time_artifact": 0.0006529999918711837,
+      "time_unsat": 0.0,
+      "time_sat": 6.106927871704102,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_8",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.8,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.461570739746094,
+      "time_cpu": 8.859375,
+      "time_solve": 6.299890518188477,
+      "time_artifact": 0.0006002000045555178,
+      "time_unsat": 0.0,
+      "time_sat": 6.299890518188477,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  },
+  {
+    "test_name": "complex_signal_mod_freq_test_9",
+    "parameters": {
+      "frequency": 440,
+      "duration": 8,
+      "phase_offset": 0.1,
+      "dynamic_range": [
+        -0.5,
+        -0.5
+      ],
+      "mode": 1,
+      "mod_frequency": 0.9,
+      "mod_depth": 1.0,
+      "waveform": "sine"
+    },
+    "performance": {
+      "choices": 104.0,
+      "conflicts": 19.0,
+      "constraints": 7.0,
+      "num_artifacts": 19,
+      "time_total": 7.515398025512695,
+      "time_cpu": 8.453125,
+      "time_solve": 6.34950065612793,
+      "time_artifact": 0.0006058000071789138,
+      "time_unsat": 0.0,
+      "time_sat": 6.349006652832031,
+      "rules": 341.0
+    },
+    "signal_info": {
+      "max_amplitude": 0.4999999503870273,
+      "rms": 0.35325873020841636
+    }
+  }
+]
