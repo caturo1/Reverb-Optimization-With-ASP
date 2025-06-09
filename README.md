@@ -18,5 +18,5 @@ The benchmark can be run just by calling the benchmark script and writes results
 bash $ ./benchmark.sh
 ```
 
-A demonstration of four examplary audio files is available in the demonstration folder, by opening the 'index.html' in you browser file.
-It is based on the [A/B Audio Player by mattbartley](https://github.com/mattbartley/AB-Audio-Player/tree/main) project, with just minor adjustments made.
+A demonstration of four examplary audio files is available in the demonstration folder by opening the 'index.html' locally in your browser. It is based on the [A/B Audio Player by mattbartley](https://github.com/mattbartley/AB-Audio-Player/tree/main) project, with just minor adjustments made by myself. The vocal files are taken from [VocalSet: A Singing Voice Dataset](https://zenodo.org/records/1193957) and the individual instrument files from the the [Musical Instrument's Sound Dataset](https://www.kaggle.com/datasets/soumendraprasad/musical-instruments-sound-dataset).
+
