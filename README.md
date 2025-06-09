@@ -19,4 +19,4 @@ bash $ ./benchmark.sh
 ```
 
 A demonstration of four examplary audio files is available in the demonstration folder, by opening the 'index.html' in you browser file.
-It is based on the [A/B Audio Player by mattbartley](https://github.com/mattbartley/AB-Audio-Player/tree/main) with just minor adjustments made.
+It is based on the [A/B Audio Player by mattbartley](https://github.com/mattbartley/AB-Audio-Player/tree/main) project, with just minor adjustments made.
